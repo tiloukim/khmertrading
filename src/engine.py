@@ -14,6 +14,7 @@ from strategy import (
 )
 from execution import market_buy, market_sell
 from risk import can_trade, calculate_position_size
+from earnings import should_pause_trading
 
 # ── Config ───────────────────────────────────────────────────────────
 CHECK_INTERVAL = 300   # 5 minutes
@@ -83,6 +84,13 @@ def check_and_trade(symbol):
     if signal != 'HOLD' and confidence < 50:
         logger.info("SKIP   %s — %s signal confidence %.0f%% < 50%%, treating as HOLD", symbol, signal, confidence)
         return
+
+    # ── Earnings check ────────────────────────────────────────────
+    if signal != 'HOLD':
+        paused, pause_reason = should_pause_trading(symbol)
+        if paused:
+            logger.info("EARNINGS %s — %s", symbol, pause_reason)
+            return
 
     # ── Execute ──────────────────────────────────────────────────
     if signal == 'BUY':

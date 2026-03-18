@@ -4,14 +4,17 @@ import plotly.graph_objects as go
 from datetime import datetime
 from streamlit_autorefresh import st_autorefresh
 from config import get_api
-from auth import check_auth
+from auth import check_auth, get_user_api
+from options import options_available, get_options_chain
+from reports import send_daily_report
 from strategy import (
     fetch_bars, fetch_crypto_bars, calculate_rsi, calculate_ma,
     calculate_macd, calculate_bollinger, calculate_vwap,
-    combined_signal,
+    combined_signal, momentum_signal, mean_reversion_signal, breakout_signal,
     RSI_OVERSOLD, RSI_OVERBOUGHT, MA_PERIOD, RSI_PERIOD,
     TIMEFRAME_MAP,
 )
+from correlation import get_correlation_matrix
 from execution import (
     market_buy, market_sell, cancel_all_orders,
     limit_buy, limit_sell, stop_order, bracket_order, is_crypto,
@@ -20,6 +23,8 @@ from trade_log import get_trades
 from portfolio_tracker import record_snapshot, get_snapshots_df
 from alerts import add_alert, get_alerts, remove_alert, check_alerts, clear_triggered
 from backtest import run_backtest
+from sentiment import get_sentiment
+from earnings import is_near_earnings
 
 # ── Page Config ──────────────────────────────────────────────────────
 st.set_page_config(
@@ -312,9 +317,67 @@ st.markdown("""
 if not check_auth():
     st.stop()
 
+# ── Landing Page ────────────────────────────────────────────────────
+if 'show_dashboard' not in st.session_state:
+    st.session_state['show_dashboard'] = False
+
+if not st.session_state['show_dashboard']:
+    st.markdown("""
+    <div style="text-align: center; padding: 3rem 1rem 1rem;">
+        <h1 style="font-size: 3.5rem; font-weight: 900; color: #0f172a; letter-spacing: -0.03em; margin-bottom: 0.25rem;">
+            KhmerTrading
+        </h1>
+        <p style="font-size: 1.25rem; color: #64748b; margin-bottom: 3rem;">
+            AI-Powered Stock &amp; Crypto Trading Platform
+        </p>
+    </div>
+    """, unsafe_allow_html=True)
+
+    c1, c2, c3 = st.columns(3)
+    with c1:
+        st.markdown("### Smart Signals")
+        st.markdown("Combined RSI + MACD + Bollinger analysis for high-confidence trade signals.")
+    with c2:
+        st.markdown("### Crypto Trading")
+        st.markdown("BTC, ETH, SOL and more — trade crypto alongside stocks in one platform.")
+    with c3:
+        st.markdown("### Risk Management")
+        st.markdown("Position sizing, drawdown protection, and bracket orders to manage risk.")
+
+    st.markdown("")
+
+    c4, c5, c6 = st.columns(3)
+    with c4:
+        st.markdown("### Real-time Alerts")
+        st.markdown("Telegram & Discord notifications when your price targets are hit.")
+    with c5:
+        st.markdown("### Backtesting")
+        st.markdown("Test strategies on historical data before risking real capital.")
+    with c6:
+        st.markdown("### Multi-Strategy")
+        st.markdown("Momentum, mean reversion, breakout — choose the strategy that fits.")
+
+    st.markdown("")
+    st.markdown("")
+
+    col_left, col_center, col_right = st.columns([1, 2, 1])
+    with col_center:
+        if st.button("Enter Dashboard", use_container_width=True, type="primary"):
+            st.session_state['show_dashboard'] = True
+            st.rerun()
+
+    st.stop()
+
+# ── Paper vs Live Mode ──────────────────────────────────────────────
+# (trading_mode selectbox is in the sidebar below, but we need the value
+#  before connecting, so we initialize session state here)
+if 'trading_mode' not in st.session_state:
+    st.session_state['trading_mode'] = 'Paper Trading'
+
 # ── Connect to Alpaca ────────────────────────────────────────────────
+live_mode = st.session_state.get('trading_mode') == 'Live Trading'
 try:
-    api = get_api()
+    api = get_user_api(live=live_mode)
     account = api.get_account()
 except Exception as e:
     st.error(f"Failed to connect to Alpaca: {e}")
@@ -323,7 +386,21 @@ except Exception as e:
 # ── Sidebar ──────────────────────────────────────────────────────────
 with st.sidebar:
     st.markdown("## KhmerTrading")
-    st.markdown('<span class="status-pill">Paper Trading</span>', unsafe_allow_html=True)
+
+    trading_mode = st.selectbox("Mode", ["Paper Trading", "Live Trading"], key="trading_mode")
+    if trading_mode == "Live Trading":
+        st.markdown('<span style="color: #dc2626; font-weight: 700;">CAUTION: Live trading uses real money!</span>', unsafe_allow_html=True)
+        live_confirmed = st.checkbox("I understand the risks", key="live_confirm")
+        if not live_confirmed:
+            st.warning("Check the box above to confirm live trading.")
+    mode_label = "Live Trading" if trading_mode == "Live Trading" else "Paper Trading"
+    pill_bg = "#fee2e2" if trading_mode == "Live Trading" else "#d1fae5"
+    pill_color = "#991b1b" if trading_mode == "Live Trading" else "#065f46"
+    st.markdown(
+        '<span class="status-pill" style="background: {}; color: {} !important;">{}</span>'.format(
+            pill_bg, pill_color, mode_label),
+        unsafe_allow_html=True,
+    )
     st.markdown("")
 
     # ── Quick Trade
@@ -438,6 +515,14 @@ with st.sidebar:
         st.error("All orders cancelled!")
         st.rerun()
 
+    st.markdown("---")
+    if st.button("Send Report", use_container_width=True):
+        ok = send_daily_report()
+        if ok:
+            st.success("Report sent!")
+        else:
+            st.error("Report not sent. Check SMTP / REPORT_EMAIL config.")
+
     st.caption(f"Updated {datetime.now().strftime('%I:%M:%S %p')}")
 
 # ── Auto-Refresh ────────────────────────────────────────────────────
@@ -501,8 +586,8 @@ if not snap_df.empty and len(snap_df) > 1:
 # ── Navigation tabs for main content ────────────────────────────────
 st.markdown("---")
 
-main_tab1, main_tab2, main_tab3, main_tab4, main_tab5, main_tab6, main_tab7 = st.tabs([
-    "Watchlist", "Strategy", "Crypto", "Positions", "Orders", "Alerts", "Backtest"
+main_tab1, main_tab2, main_tab3, main_tab4, main_tab5, main_tab6, main_tab7, main_tab8 = st.tabs([
+    "Watchlist", "Strategy", "Crypto", "Positions", "Orders", "Alerts", "Backtest", "Options"
 ])
 
 
@@ -544,7 +629,7 @@ with main_tab1:
 #  TAB 2: STRATEGY MONITOR
 # ═══════════════════════════════════════════════════════════════════
 with main_tab2:
-    c1, c2 = st.columns([1, 2])
+    c1, c2, c3 = st.columns([1, 2, 1])
     with c1:
         stock_timeframe = st.selectbox("Timeframe", list(TIMEFRAME_MAP.keys()), index=2, key="stock_tf")
     with c2:
@@ -553,6 +638,12 @@ with main_tab2:
             ["RSI", "MA", "MACD", "Bollinger Bands", "VWAP"],
             default=["RSI", "MA"],
             key="indicators",
+        )
+    with c3:
+        strategy_choice = st.selectbox(
+            "Strategy",
+            ["Combined (RSI+MA+MACD+BB)", "Momentum", "Mean Reversion", "Breakout"],
+            key="strategy_sel",
         )
 
     stock_watchlist = [s for s in watchlist if '/' not in s]
@@ -592,19 +683,75 @@ with main_tab2:
                     with m4:
                         st.markdown(f'<div style="padding-top:24px"><span class="{signal_class}">{signal}</span></div>', unsafe_allow_html=True)
 
-                    # Combined signal analysis
-                    cs = combined_signal(bars)
+                    # Strategy signal analysis
+                    if strategy_choice == "Momentum":
+                        cs = momentum_signal(bars)
+                        strat_label = "Momentum"
+                    elif strategy_choice == "Mean Reversion":
+                        cs = mean_reversion_signal(bars)
+                        strat_label = "Mean Reversion"
+                    elif strategy_choice == "Breakout":
+                        cs = breakout_signal(bars)
+                        strat_label = "Breakout"
+                    else:
+                        cs = combined_signal(bars)
+                        strat_label = "Combined"
+
                     cs_signal = cs['signal']
                     cs_confidence = cs['confidence']
                     cs_reasons = cs['reasons']
 
-                    st.markdown("**Combined Signal: %s** (confidence: %.0f%%)" % (cs_signal, cs_confidence))
+                    st.markdown("**%s Signal: %s** (confidence: %.0f%%)" % (strat_label, cs_signal, cs_confidence))
                     st.progress(cs_confidence / 100.0)
                     if cs_reasons:
                         for r in cs_reasons:
                             st.markdown("- %s" % r)
                     else:
                         st.caption("No strong indicators triggered.")
+
+                    # ── Earnings warning ──────────────────────────
+                    earnings_near, earnings_reason = is_near_earnings(symbol)
+                    if earnings_near:
+                        st.warning("Earnings Alert: %s" % earnings_reason)
+
+                    # ── News sentiment ────────────────────────────
+                    sentiment = get_sentiment(symbol)
+                    sent_summary = sentiment['summary']
+                    if sent_summary == 'Bullish':
+                        sent_class = 'signal-buy'
+                    elif sent_summary == 'Bearish':
+                        sent_class = 'signal-sell'
+                    else:
+                        sent_class = 'signal-hold'
+
+                    st.markdown("---")
+                    s1, s2 = st.columns([1, 2])
+                    with s1:
+                        st.markdown(
+                            '<div style="padding-top:4px"><span class="%s">Sentiment: %s</span></div>' % (sent_class, sent_summary),
+                            unsafe_allow_html=True,
+                        )
+                    with s2:
+                        st.metric("Sentiment Score", "%.2f" % sentiment['score'])
+
+                    if sentiment['articles']:
+                        with st.expander("Recent Headlines"):
+                            for art in sentiment['articles']:
+                                if art['sentiment'] == 'bullish':
+                                    color = '#10b981'
+                                elif art['sentiment'] == 'bearish':
+                                    color = '#ef4444'
+                                else:
+                                    color = '#94a3b8'
+                                st.markdown(
+                                    '<span style="color:%s; font-weight:600;">%s</span> &nbsp; '
+                                    '<span style="color:#94a3b8; font-size:0.75rem;">%s</span>' % (
+                                        color,
+                                        art['headline'],
+                                        art['timestamp'][:16],
+                                    ),
+                                    unsafe_allow_html=True,
+                                )
 
                     # Price chart
                     fig = go.Figure()
@@ -711,6 +858,37 @@ with main_tab2:
                     st.error(f"Error analyzing {symbol}: {e}")
     else:
         st.info("Add stock symbols to your watchlist.")
+
+    # ── Correlation Analysis ──────────────────────────────────────
+    if len(stock_watchlist) >= 2:
+        with st.expander("Correlation Analysis"):
+            try:
+                corr_matrix = get_correlation_matrix(stock_watchlist, days=30)
+                if corr_matrix is not None and not corr_matrix.empty:
+                    symbols_list = list(corr_matrix.columns)
+                    fig_corr = go.Figure(data=go.Heatmap(
+                        z=corr_matrix.values,
+                        x=symbols_list,
+                        y=symbols_list,
+                        colorscale='RdYlGn',
+                        zmin=-1, zmax=1,
+                        text=corr_matrix.round(2).values,
+                        texttemplate="%{text}",
+                        textfont=dict(size=12),
+                    ))
+                    fig_corr.update_layout(
+                        height=400,
+                        margin=dict(l=0, r=0, t=10, b=0),
+                        plot_bgcolor='rgba(0,0,0,0)',
+                        paper_bgcolor='rgba(0,0,0,0)',
+                        xaxis=dict(showgrid=False),
+                        yaxis=dict(showgrid=False, autorange='reversed'),
+                    )
+                    st.plotly_chart(fig_corr, use_container_width=True)
+                else:
+                    st.info("Not enough data to compute correlations.")
+            except Exception as e:
+                st.warning("Correlation analysis unavailable: %s" % e)
 
 
 # ═══════════════════════════════════════════════════════════════════
@@ -847,6 +1025,45 @@ with main_tab3:
                         st.markdown('<span class="signal-sell">SELL — RSI %.1f overbought</span>' % current_rsi, unsafe_allow_html=True)
                     else:
                         st.markdown('<span class="signal-hold">HOLD — RSI %.1f</span>' % current_rsi, unsafe_allow_html=True)
+
+                    # ── News sentiment ────────────────────────
+                    crypto_sentiment = get_sentiment(symbol)
+                    cs_summary = crypto_sentiment['summary']
+                    if cs_summary == 'Bullish':
+                        cs_class = 'signal-buy'
+                    elif cs_summary == 'Bearish':
+                        cs_class = 'signal-sell'
+                    else:
+                        cs_class = 'signal-hold'
+
+                    st.markdown("---")
+                    cs1, cs2 = st.columns([1, 2])
+                    with cs1:
+                        st.markdown(
+                            '<div style="padding-top:4px"><span class="%s">Sentiment: %s</span></div>' % (cs_class, cs_summary),
+                            unsafe_allow_html=True,
+                        )
+                    with cs2:
+                        st.metric("Sentiment Score", "%.2f" % crypto_sentiment['score'])
+
+                    if crypto_sentiment['articles']:
+                        with st.expander("Recent Headlines"):
+                            for art in crypto_sentiment['articles']:
+                                if art['sentiment'] == 'bullish':
+                                    color = '#10b981'
+                                elif art['sentiment'] == 'bearish':
+                                    color = '#ef4444'
+                                else:
+                                    color = '#94a3b8'
+                                st.markdown(
+                                    '<span style="color:%s; font-weight:600;">%s</span> &nbsp; '
+                                    '<span style="color:#94a3b8; font-size:0.75rem;">%s</span>' % (
+                                        color,
+                                        art['headline'],
+                                        art['timestamp'][:16],
+                                    ),
+                                    unsafe_allow_html=True,
+                                )
                 else:
                     st.warning(f"Not enough data for {symbol}")
 
@@ -895,6 +1112,37 @@ with main_tab4:
                 st.metric("Market Value", f"${total_mv:,.2f}")
             with c3:
                 st.metric("Positions", str(len(positions)))
+
+            # ── Portfolio Allocation Pie Chart ────────────────
+            alloc_labels = [p['Symbol'] for p in pos_data]
+            alloc_values = [float(pos.market_value) for pos in positions]
+            # Add remaining cash
+            alloc_labels.append("Cash")
+            alloc_values.append(cash)
+
+            pie_colors = [
+                '#10b981', '#059669', '#047857', '#065f46',  # greens
+                '#3b82f6', '#2563eb', '#1d4ed8',             # blues
+                '#8b5cf6', '#7c3aed', '#6d28d9',             # purples
+                '#06b6d4', '#0891b2', '#0e7490',             # cyan
+            ]
+
+            fig_pie = go.Figure(data=[go.Pie(
+                labels=alloc_labels,
+                values=alloc_values,
+                hole=0.4,
+                marker=dict(colors=pie_colors[:len(alloc_labels)]),
+                textinfo='label+percent',
+                textfont=dict(size=12),
+            )])
+            fig_pie.update_layout(
+                height=400,
+                margin=dict(l=0, r=0, t=10, b=0),
+                plot_bgcolor='rgba(0,0,0,0)',
+                paper_bgcolor='rgba(0,0,0,0)',
+                legend=dict(orientation="h", yanchor="bottom", y=-0.1, xanchor="center", x=0.5),
+            )
+            st.plotly_chart(fig_pie, use_container_width=True)
 
     except Exception as e:
         st.error(f"Error loading positions: {e}")
@@ -1087,6 +1335,49 @@ with main_tab7:
                 st.dataframe(pd.DataFrame(result['trades']), use_container_width=True, hide_index=True)
         else:
             st.info("No trades triggered during this period.")
+
+
+# ═══════════════════════════════════════════════════════════════════
+#  TAB 8: OPTIONS
+# ═══════════════════════════════════════════════════════════════════
+with main_tab8:
+    st.markdown(
+        '<span style="background:#f59e0b; color:#fff; padding:3px 10px; '
+        'border-radius:6px; font-size:0.8rem; font-weight:600;">'
+        'Coming Soon</span>',
+        unsafe_allow_html=True,
+    )
+    st.markdown("### Options Trading")
+
+    available, msg = options_available()
+    st.info(msg)
+
+    st.markdown("""
+**What are options?**
+
+Options are financial derivatives that give the buyer the right — but not the
+obligation — to buy (call) or sell (put) an underlying asset at a specific
+price (strike) before a certain date (expiration).
+
+Key concepts:
+- **Call option** — the right to *buy* at the strike price
+- **Put option** — the right to *sell* at the strike price
+- **Premium** — the price you pay for the option contract
+- **Expiration** — the date the option expires
+- **Strike price** — the price at which you can exercise
+
+Options can be used for hedging, income generation (covered calls), or
+leveraged speculation.
+""")
+
+    st.markdown(
+        "📚 [Alpaca Options Trading Docs]"
+        "(https://docs.alpaca.markets/docs/options-trading)"
+    )
+
+    opt_symbol = st.text_input("Check options availability", value="AAPL", key="_opt_symbol")
+    if st.button("Check", key="_opt_check"):
+        st.warning(get_options_chain(opt_symbol))
 
 
 # ── Footer ───────────────────────────────────────────────────────────

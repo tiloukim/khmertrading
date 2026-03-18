@@ -24,8 +24,18 @@ TELEGRAM_BOT_TOKEN = _get_secret('TELEGRAM_BOT_TOKEN', '')
 TELEGRAM_CHAT_ID = _get_secret('TELEGRAM_CHAT_ID', '')
 DISCORD_WEBHOOK_URL = _get_secret('DISCORD_WEBHOOK_URL', '')
 
+SMTP_HOST = _get_secret('SMTP_HOST', '')
+SMTP_PORT = _get_secret('SMTP_PORT', '587')
+SMTP_USER = _get_secret('SMTP_USER', '')
+SMTP_PASS = _get_secret('SMTP_PASS', '')
+REPORT_EMAIL = _get_secret('REPORT_EMAIL', '')
+
 if BASE_URL.endswith('/v2'):
     BASE_URL = BASE_URL[:-3]
 
-def get_api():
-    return tradeapi.REST(API_KEY, SECRET_KEY, BASE_URL, api_version='v2')
+LIVE_BASE_URL = 'https://api.alpaca.markets'
+
+
+def get_api(live=False):
+    url = LIVE_BASE_URL if live else BASE_URL
+    return tradeapi.REST(API_KEY, SECRET_KEY, url, api_version='v2')

@@ -1,0 +1,7 @@
+[build]
+builder = "nixpacks"
+
+[deploy]
+startCommand = "python src/engine.py NVDA TSLA AAPL BTC/USD ETH/USD"
+restartPolicyType = "on_failure"
+restartPolicyMaxRetries = 10

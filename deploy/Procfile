@@ -1,0 +1,1 @@
+worker: python src/engine.py NVDA TSLA AAPL BTC/USD ETH/USD

@@ -241,6 +241,163 @@ def combined_signal(bars):
     }
 
 
+def momentum_signal(bars):
+    """Compute a Momentum signal based on Rate of Change and volume trend.
+
+    Parameters
+    ----------
+    bars : pd.DataFrame
+        Must contain columns: close, volume.
+
+    Returns
+    -------
+    dict  {'signal': str, 'confidence': float, 'reasons': list}
+    """
+    prices = bars['close']
+    volumes = bars['volume']
+    reasons = []
+
+    if len(prices) < 11:
+        return {'signal': 'HOLD', 'confidence': 0.0, 'reasons': ['Not enough data for momentum']}
+
+    current_price = prices.iloc[-1]
+    price_10_ago = prices.iloc[-11]
+    roc = (current_price - price_10_ago) / price_10_ago * 100
+
+    vol_avg_20 = volumes.tail(20).mean()
+    current_vol = volumes.iloc[-1]
+    vol_above_avg = current_vol > vol_avg_20
+
+    signal = 'HOLD'
+    confidence = 0.0
+
+    if roc > 3 and vol_above_avg:
+        signal = 'BUY'
+        confidence = min(abs(roc) * 5, 100)
+        reasons.append("ROC %.2f%% > 3%% (strong upward momentum)" % roc)
+        reasons.append("Volume %s above 20-bar avg %s" % (
+            "{:,.0f}".format(current_vol), "{:,.0f}".format(vol_avg_20)))
+    elif roc < -3 and vol_above_avg:
+        signal = 'SELL'
+        confidence = min(abs(roc) * 5, 100)
+        reasons.append("ROC %.2f%% < -3%% (strong downward momentum)" % roc)
+        reasons.append("Volume %s above 20-bar avg %s" % (
+            "{:,.0f}".format(current_vol), "{:,.0f}".format(vol_avg_20)))
+    else:
+        if abs(roc) <= 3:
+            reasons.append("ROC %.2f%% within neutral zone (-3%% to 3%%)" % roc)
+        if not vol_above_avg:
+            reasons.append("Volume %s below 20-bar avg %s" % (
+                "{:,.0f}".format(current_vol), "{:,.0f}".format(vol_avg_20)))
+
+    return {'signal': signal, 'confidence': float(confidence), 'reasons': reasons}
+
+
+def mean_reversion_signal(bars):
+    """Compute a Mean Reversion signal based on z-score from 20-MA.
+
+    Parameters
+    ----------
+    bars : pd.DataFrame
+        Must contain columns: close.
+
+    Returns
+    -------
+    dict  {'signal': str, 'confidence': float, 'reasons': list}
+    """
+    prices = bars['close']
+    reasons = []
+
+    if len(prices) < 20:
+        return {'signal': 'HOLD', 'confidence': 0.0, 'reasons': ['Not enough data for mean reversion']}
+
+    ma_20 = prices.rolling(window=20).mean()
+    std_20 = prices.rolling(window=20).std()
+
+    current_price = prices.iloc[-1]
+    current_ma = ma_20.iloc[-1]
+    current_std = std_20.iloc[-1]
+
+    if pd.isna(current_ma) or pd.isna(current_std) or current_std == 0:
+        return {'signal': 'HOLD', 'confidence': 0.0, 'reasons': ['Insufficient variance for z-score']}
+
+    z_score = (current_price - current_ma) / current_std
+
+    signal = 'HOLD'
+    confidence = 0.0
+
+    if z_score < -2:
+        signal = 'BUY'
+        confidence = min(abs(z_score) * 25, 100)
+        reasons.append("Z-score %.2f < -2 (price 2+ std devs below mean)" % z_score)
+        reasons.append("Price $%.2f vs 20-MA $%.2f" % (current_price, current_ma))
+    elif z_score > 2:
+        signal = 'SELL'
+        confidence = min(abs(z_score) * 25, 100)
+        reasons.append("Z-score %.2f > 2 (price 2+ std devs above mean)" % z_score)
+        reasons.append("Price $%.2f vs 20-MA $%.2f" % (current_price, current_ma))
+    else:
+        reasons.append("Z-score %.2f within normal range (-2 to 2)" % z_score)
+
+    return {'signal': signal, 'confidence': float(confidence), 'reasons': reasons}
+
+
+def breakout_signal(bars):
+    """Compute a Breakout signal based on 20-bar high/low with volume confirmation.
+
+    Parameters
+    ----------
+    bars : pd.DataFrame
+        Must contain columns: close, high, low, volume.
+
+    Returns
+    -------
+    dict  {'signal': str, 'confidence': float, 'reasons': list}
+    """
+    prices = bars['close']
+    highs = bars['high']
+    lows = bars['low']
+    volumes = bars['volume']
+    reasons = []
+
+    if len(prices) < 21:
+        return {'signal': 'HOLD', 'confidence': 0.0, 'reasons': ['Not enough data for breakout']}
+
+    current_price = prices.iloc[-1]
+    # 20-bar high/low excluding the current bar
+    high_20 = highs.iloc[-21:-1].max()
+    low_20 = lows.iloc[-21:-1].min()
+
+    vol_avg_20 = volumes.tail(20).mean()
+    current_vol = volumes.iloc[-1]
+    vol_above_avg = current_vol > vol_avg_20
+
+    signal = 'HOLD'
+    confidence = 0.0
+
+    if current_price > high_20 and vol_above_avg:
+        signal = 'BUY'
+        breakout_pct = (current_price - high_20) / high_20 * 100
+        confidence = min(breakout_pct * 20 + 40, 100)
+        reasons.append("Price $%.2f broke above 20-bar high $%.2f (+%.2f%%)" % (
+            current_price, high_20, breakout_pct))
+        reasons.append("Volume confirmed: %s above avg %s" % (
+            "{:,.0f}".format(current_vol), "{:,.0f}".format(vol_avg_20)))
+    elif current_price < low_20:
+        signal = 'SELL'
+        breakdown_pct = (low_20 - current_price) / low_20 * 100
+        confidence = min(breakdown_pct * 20 + 40, 100)
+        reasons.append("Price $%.2f broke below 20-bar low $%.2f (-%.2f%%)" % (
+            current_price, low_20, breakdown_pct))
+    else:
+        reasons.append("Price $%.2f within 20-bar range ($%.2f — $%.2f)" % (
+            current_price, low_20, high_20))
+        if not vol_above_avg:
+            reasons.append("Volume below average — no breakout confirmation")
+
+    return {'signal': signal, 'confidence': float(confidence), 'reasons': reasons}
+
+
 def analyze(symbol, dry_run=True):
     """Analyze a symbol and return buy/sell/hold signal."""
     print(f"\n{'─' * 60}")
