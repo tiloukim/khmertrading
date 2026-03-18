@@ -1,0 +1,6 @@
+.env
+__pycache__/
+*.pyc
+trades.db
+.streamlit/secrets.toml
+live_bot.log

@@ -1,0 +1,1100 @@
+import streamlit as st
+import pandas as pd
+import plotly.graph_objects as go
+from datetime import datetime
+from streamlit_autorefresh import st_autorefresh
+from config import get_api
+from auth import check_auth
+from strategy import (
+    fetch_bars, fetch_crypto_bars, calculate_rsi, calculate_ma,
+    calculate_macd, calculate_bollinger, calculate_vwap,
+    combined_signal,
+    RSI_OVERSOLD, RSI_OVERBOUGHT, MA_PERIOD, RSI_PERIOD,
+    TIMEFRAME_MAP,
+)
+from execution import (
+    market_buy, market_sell, cancel_all_orders,
+    limit_buy, limit_sell, stop_order, bracket_order, is_crypto,
+)
+from trade_log import get_trades
+from portfolio_tracker import record_snapshot, get_snapshots_df
+from alerts import add_alert, get_alerts, remove_alert, check_alerts, clear_triggered
+from backtest import run_backtest
+
+# ── Page Config ──────────────────────────────────────────────────────
+st.set_page_config(
+    page_title="KhmerTrading",
+    page_icon="📈",
+    layout="wide",
+    initial_sidebar_state="expanded",
+)
+
+# ── Modern CSS ───────────────────────────────────────────────────────
+st.markdown("""
+<style>
+    /* ── Global ─────────────────────────────────────── */
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
+
+    html, body, [class*="css"] {
+        font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+    }
+
+    .main .block-container {
+        padding-top: 2rem;
+        padding-bottom: 2rem;
+        max-width: 1200px;
+    }
+
+    /* ── Hide Streamlit chrome ──────────────────────── */
+    #MainMenu, footer, header { visibility: hidden; }
+
+    /* ── Section headers ───────────────────────────── */
+    .section-header {
+        font-size: 1.1rem;
+        font-weight: 700;
+        color: #64748b;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        margin-bottom: 0.75rem;
+        padding-bottom: 0.5rem;
+        border-bottom: 2px solid #f1f5f9;
+    }
+
+    .page-title {
+        font-size: 1.75rem;
+        font-weight: 900;
+        color: #0f172a;
+        letter-spacing: -0.02em;
+        margin-bottom: 0;
+    }
+
+    .page-subtitle {
+        font-size: 0.875rem;
+        color: #94a3b8;
+        margin-top: -8px;
+        margin-bottom: 1.5rem;
+    }
+
+    /* ── Metric cards ──────────────────────────────── */
+    div[data-testid="stMetric"] {
+        background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
+        border-radius: 16px;
+        padding: 20px 16px;
+        border: 1px solid #e2e8f0;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+        transition: transform 0.15s ease, box-shadow 0.15s ease;
+    }
+    div[data-testid="stMetric"]:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+    }
+    div[data-testid="stMetric"] label {
+        font-size: 0.75rem !important;
+        font-weight: 600 !important;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        color: #94a3b8 !important;
+    }
+    div[data-testid="stMetric"] [data-testid="stMetricValue"] {
+        font-size: 1.35rem !important;
+        font-weight: 800 !important;
+        color: #0f172a !important;
+    }
+
+    /* ── Buttons ───────────────────────────────────── */
+    .stButton > button {
+        border-radius: 12px;
+        font-weight: 600;
+        font-size: 0.875rem;
+        padding: 0.5rem 1.25rem;
+        transition: all 0.15s ease;
+        border: none;
+    }
+    .stButton > button[kind="primary"] {
+        background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+        color: white;
+    }
+    .stButton > button[kind="primary"]:hover {
+        background: linear-gradient(135deg, #059669 0%, #047857 100%);
+        box-shadow: 0 4px 12px rgba(16,185,129,0.3);
+    }
+    .stButton > button[kind="secondary"] {
+        background: #f1f5f9;
+        color: #475569;
+    }
+    .stButton > button[kind="secondary"]:hover {
+        background: #e2e8f0;
+    }
+
+    /* ── Tabs ──────────────────────────────────────── */
+    .stTabs [data-baseweb="tab-list"] {
+        gap: 0;
+        background: #f1f5f9;
+        border-radius: 12px;
+        padding: 4px;
+    }
+    .stTabs [data-baseweb="tab"] {
+        border-radius: 10px;
+        font-weight: 600;
+        font-size: 0.85rem;
+        padding: 8px 20px;
+        color: #64748b;
+    }
+    .stTabs [aria-selected="true"] {
+        background: white !important;
+        color: #0f172a !important;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+    }
+    .stTabs [data-baseweb="tab-border"] { display: none; }
+    .stTabs [data-baseweb="tab-highlight"] { display: none; }
+
+    /* ── Dataframes ────────────────────────────────── */
+    .stDataFrame {
+        border-radius: 12px;
+        overflow: hidden;
+    }
+
+    /* ── Sidebar ───────────────────────────────────── */
+    section[data-testid="stSidebar"] {
+        background: #f8fafc;
+        border-right: 1px solid #e2e8f0;
+    }
+    section[data-testid="stSidebar"] .stMarkdown h2 {
+        color: #0f172a !important;
+        font-size: 1.25rem !important;
+    }
+    section[data-testid="stSidebar"] .stMarkdown h3 {
+        color: #1e293b !important;
+    }
+    section[data-testid="stSidebar"] .stMarkdown p,
+    section[data-testid="stSidebar"] .stMarkdown span {
+        color: #475569 !important;
+    }
+    section[data-testid="stSidebar"] hr {
+        border-color: #e2e8f0;
+    }
+    section[data-testid="stSidebar"] .stSelectbox label,
+    section[data-testid="stSidebar"] .stTextInput label,
+    section[data-testid="stSidebar"] .stNumberInput label,
+    section[data-testid="stSidebar"] .stMultiSelect label,
+    section[data-testid="stSidebar"] .stCheckbox label {
+        color: #64748b !important;
+        font-size: 0.8rem !important;
+        font-weight: 600 !important;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+    }
+    section[data-testid="stSidebar"] input,
+    section[data-testid="stSidebar"] .stSelectbox [data-baseweb="select"],
+    section[data-testid="stSidebar"] .stMultiSelect [data-baseweb="select"] {
+        background: #ffffff !important;
+        border: 1px solid #cbd5e1 !important;
+        border-radius: 8px !important;
+        color: #0f172a !important;
+    }
+    section[data-testid="stSidebar"] .stButton > button {
+        border: 1px solid #cbd5e1;
+        color: #334155;
+        background: #ffffff;
+    }
+    section[data-testid="stSidebar"] .stButton > button:hover {
+        background: #f1f5f9;
+    }
+    section[data-testid="stSidebar"] .stButton > button[kind="primary"] {
+        border: none;
+        color: white;
+    }
+
+    /* ── Expander ──────────────────────────────────── */
+    .streamlit-expanderHeader {
+        font-weight: 600;
+        font-size: 0.9rem;
+        border-radius: 12px;
+    }
+
+    /* ── Divider ───────────────────────────────────── */
+    hr {
+        border: none;
+        border-top: 1px solid #f1f5f9;
+        margin: 1.5rem 0;
+    }
+
+    /* ── Signal badges ─────────────────────────────── */
+    .signal-buy {
+        display: inline-block;
+        background: linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%);
+        color: #065f46;
+        padding: 6px 16px;
+        border-radius: 999px;
+        font-weight: 700;
+        font-size: 0.85rem;
+    }
+    .signal-sell {
+        display: inline-block;
+        background: linear-gradient(135deg, #fee2e2 0%, #fecaca 100%);
+        color: #991b1b;
+        padding: 6px 16px;
+        border-radius: 999px;
+        font-weight: 700;
+        font-size: 0.85rem;
+    }
+    .signal-hold {
+        display: inline-block;
+        background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+        color: #92400e;
+        padding: 6px 16px;
+        border-radius: 999px;
+        font-weight: 700;
+        font-size: 0.85rem;
+    }
+
+    /* ── Alerts ─────────────────────────────────────── */
+    .stAlert {
+        border-radius: 12px;
+    }
+
+    /* ── Status pill (sidebar) ─────────────────────── */
+    .status-pill {
+        display: inline-block;
+        background: #d1fae5;
+        color: #065f46 !important;
+        padding: 4px 12px;
+        border-radius: 999px;
+        font-size: 0.7rem;
+        font-weight: 700;
+        letter-spacing: 0.05em;
+        text-transform: uppercase;
+    }
+
+    /* ── Nav section in main ────────────────────────── */
+    .nav-container {
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+        margin-bottom: 1rem;
+    }
+
+    /* ── Mobile responsive ─────────────────────────── */
+    @media (max-width: 768px) {
+        .main .block-container {
+            padding-left: 1rem;
+            padding-right: 1rem;
+            padding-top: 1rem;
+        }
+        .page-title {
+            font-size: 1.3rem;
+        }
+        .page-subtitle {
+            font-size: 0.75rem;
+        }
+        div[data-testid="stMetric"] {
+            padding: 12px 10px;
+            border-radius: 10px;
+        }
+        div[data-testid="stMetric"] [data-testid="stMetricValue"] {
+            font-size: 1.1rem !important;
+        }
+        div[data-testid="stMetric"] label {
+            font-size: 0.65rem !important;
+        }
+        .stTabs [data-baseweb="tab"] {
+            padding: 6px 12px;
+            font-size: 0.75rem;
+        }
+        .signal-buy, .signal-sell, .signal-hold {
+            font-size: 0.75rem;
+            padding: 4px 10px;
+        }
+    }
+</style>
+""", unsafe_allow_html=True)
+
+if not check_auth():
+    st.stop()
+
+# ── Connect to Alpaca ────────────────────────────────────────────────
+try:
+    api = get_api()
+    account = api.get_account()
+except Exception as e:
+    st.error(f"Failed to connect to Alpaca: {e}")
+    st.stop()
+
+# ── Sidebar ──────────────────────────────────────────────────────────
+with st.sidebar:
+    st.markdown("## KhmerTrading")
+    st.markdown('<span class="status-pill">Paper Trading</span>', unsafe_allow_html=True)
+    st.markdown("")
+
+    # ── Quick Trade
+    with st.expander("Quick Trade", expanded=True):
+        trade_symbol = st.text_input("Symbol", value="NVDA", placeholder="AAPL, TSLA, BTC/USD").upper()
+        c1, c2 = st.columns(2)
+        with c1:
+            trade_qty = st.number_input("Qty", min_value=1, max_value=10000, value=5)
+        with c2:
+            order_type = st.selectbox("Type", ["Market", "Limit", "Stop", "Bracket"])
+
+        trade_limit_price = trade_stop_price = trade_tp_price = trade_sl_price = None
+
+        if order_type == "Limit":
+            trade_limit_price = st.number_input("Limit Price", min_value=0.01, value=100.00, key="limit_px")
+        elif order_type == "Stop":
+            trade_stop_price = st.number_input("Stop Price", min_value=0.01, value=100.00, key="stop_px")
+        elif order_type == "Bracket":
+            c1, c2 = st.columns(2)
+            with c1:
+                trade_tp_price = st.number_input("Take Profit", min_value=0.01, value=110.00, key="tp_px")
+            with c2:
+                trade_sl_price = st.number_input("Stop Loss", min_value=0.01, value=90.00, key="sl_px")
+            if is_crypto(trade_symbol):
+                st.warning("Bracket orders not supported for crypto.")
+
+        if order_type == "Bracket":
+            if st.button("BUY Bracket", use_container_width=True, type="primary"):
+                if is_crypto(trade_symbol):
+                    st.error("Not supported for crypto")
+                else:
+                    result = bracket_order(trade_symbol, trade_qty, trade_tp_price, trade_sl_price)
+                    if result:
+                        st.success(f"Bracket: {trade_qty}x {trade_symbol}")
+                    else:
+                        st.error("Failed")
+                    st.rerun()
+        else:
+            col_buy, col_sell = st.columns(2)
+            with col_buy:
+                if st.button("BUY", use_container_width=True, type="primary"):
+                    if order_type == "Market":
+                        result = market_buy(trade_symbol, trade_qty)
+                    elif order_type == "Limit":
+                        result = limit_buy(trade_symbol, trade_qty, trade_limit_price)
+                    elif order_type == "Stop":
+                        result = stop_order(trade_symbol, trade_qty, trade_stop_price, side='buy')
+                    else:
+                        result = None
+                    if result:
+                        st.success(f"Bought {trade_qty}x {trade_symbol}")
+                    else:
+                        st.error("Buy failed")
+                    st.rerun()
+            with col_sell:
+                if st.button("SELL", use_container_width=True):
+                    if order_type == "Market":
+                        result = market_sell(trade_symbol, trade_qty)
+                    elif order_type == "Limit":
+                        result = limit_sell(trade_symbol, trade_qty, trade_limit_price)
+                    elif order_type == "Stop":
+                        result = stop_order(trade_symbol, trade_qty, trade_stop_price, side='sell')
+                    else:
+                        result = None
+                    if result:
+                        st.success(f"Sold {trade_qty}x {trade_symbol}")
+                    else:
+                        st.error("Sell failed")
+                    st.rerun()
+
+    # ── Watchlist
+    with st.expander("Watchlist", expanded=True):
+        watchlist = st.multiselect(
+            "Symbols",
+            ["NVDA", "TSLA", "AAPL", "MSFT", "AMZN", "GOOG", "META", "AMD", "NFLX", "SPY",
+             "BTC/USD", "ETH/USD", "SOL/USD", "AVAX/USD", "LINK/USD", "DOGE/USD"],
+            default=["NVDA", "TSLA", "AAPL", "BTC/USD"],
+            label_visibility="collapsed",
+        )
+
+    # ── Price Alerts
+    with st.expander("Price Alerts"):
+        alert_symbol = st.text_input("Symbol", value="BTC/USD", key="alert_sym").upper()
+        c1, c2 = st.columns(2)
+        with c1:
+            alert_price = st.number_input("Target ($)", min_value=0.01, value=100.00, key="alert_price")
+        with c2:
+            alert_dir = st.selectbox("When", ["above", "below"], key="alert_dir")
+        if st.button("Add Alert", use_container_width=True):
+            add_alert(alert_symbol, alert_price, alert_dir)
+            st.success(f"{alert_symbol} {alert_dir} ${alert_price:,.2f}")
+            st.rerun()
+
+        alerts = get_alerts()
+        pending = [a for a in alerts if not a['triggered']]
+        if pending:
+            for a in pending:
+                st.caption(f"**{a['symbol']}** {a['direction']} ${a['target']:,.2f}")
+
+    st.markdown("---")
+
+    # ── Controls
+    c1, c2 = st.columns(2)
+    with c1:
+        auto_refresh_on = st.checkbox("Auto-Refresh", value=False)
+    with c2:
+        if st.button("Refresh", use_container_width=True):
+            st.rerun()
+
+    if st.button("Cancel All Orders", use_container_width=True):
+        cancel_all_orders()
+        st.error("All orders cancelled!")
+        st.rerun()
+
+    st.caption(f"Updated {datetime.now().strftime('%I:%M:%S %p')}")
+
+# ── Auto-Refresh ────────────────────────────────────────────────────
+if auto_refresh_on:
+    st_autorefresh(interval=60000, key="auto_refresh")
+
+
+# ════════════════════════════════════════════════════════════════════
+#  MAIN CONTENT
+# ════════════════════════════════════════════════════════════════════
+
+st.markdown('<p class="page-title">KhmerTrading</p>', unsafe_allow_html=True)
+st.markdown('<p class="page-subtitle">AI-Powered Stock & Crypto Trading Platform</p>', unsafe_allow_html=True)
+
+# ── Account Overview ─────────────────────────────────────────────────
+equity = float(account.equity)
+cash = float(account.cash)
+buying_power = float(account.buying_power)
+portfolio_value = float(account.portfolio_value)
+initial = 100000.0
+total_pl = equity - initial
+total_pl_pct = (total_pl / initial) * 100
+
+record_snapshot(equity, cash, portfolio_value)
+
+col1, col2, col3, col4, col5 = st.columns(5)
+with col1:
+    st.metric("Equity", f"${equity:,.2f}", delta=f"{total_pl_pct:+.2f}%")
+with col2:
+    st.metric("Cash", f"${cash:,.2f}")
+with col3:
+    st.metric("Portfolio", f"${portfolio_value:,.2f}")
+with col4:
+    st.metric("Buying Power", f"${buying_power:,.2f}")
+with col5:
+    pl_label = "Profit" if total_pl >= 0 else "Loss"
+    st.metric("P/L", f"${total_pl:,.2f}", delta=pl_label)
+
+# ── Portfolio Performance ────────────────────────────────────────────
+snap_df = get_snapshots_df(days=30)
+if not snap_df.empty and len(snap_df) > 1:
+    fig_equity = go.Figure()
+    fig_equity.add_trace(go.Scatter(
+        x=snap_df['timestamp'], y=snap_df['equity'],
+        name='Equity',
+        line=dict(color='#10b981', width=2.5),
+        fill='tozeroy', fillcolor='rgba(16,185,129,0.06)',
+    ))
+    fig_equity.add_hline(y=100000, line_dash="dot", line_color="#94a3b8", line_width=1)
+    fig_equity.update_layout(
+        height=260,
+        margin=dict(l=0, r=0, t=10, b=0),
+        xaxis=dict(showgrid=False, title=""),
+        yaxis=dict(showgrid=True, gridcolor='#f1f5f9', title=""),
+        plot_bgcolor='rgba(0,0,0,0)',
+        paper_bgcolor='rgba(0,0,0,0)',
+        showlegend=False,
+    )
+    st.plotly_chart(fig_equity, use_container_width=True)
+
+# ── Navigation tabs for main content ────────────────────────────────
+st.markdown("---")
+
+main_tab1, main_tab2, main_tab3, main_tab4, main_tab5, main_tab6, main_tab7 = st.tabs([
+    "Watchlist", "Strategy", "Crypto", "Positions", "Orders", "Alerts", "Backtest"
+])
+
+
+# ═══════════════════════════════════════════════════════════════════
+#  TAB 1: WATCHLIST
+# ═══════════════════════════════════════════════════════════════════
+with main_tab1:
+    if watchlist:
+        # Limit columns to avoid squishing
+        per_row = min(len(watchlist), 4)
+        rows = [watchlist[i:i+per_row] for i in range(0, len(watchlist), per_row)]
+        for row in rows:
+            cols = st.columns(per_row)
+            for j, symbol in enumerate(row):
+                with cols[j]:
+                    try:
+                        is_crypto_sym = '/' in symbol
+                        if is_crypto_sym:
+                            snapshots = api.get_crypto_snapshot(symbol)
+                            snapshot = snapshots[symbol] if isinstance(snapshots, dict) else snapshots
+                            price = float(snapshot.latest_trade.p)
+                            prev_price = float(snapshot.prev_daily_bar.c) if snapshot.prev_daily_bar else price
+                        else:
+                            snapshot = api.get_snapshot(symbol, feed='iex')
+                            price = float(snapshot.latest_trade.price) if snapshot.latest_trade else float(snapshot.daily_bar.close)
+                            prev_price = float(snapshot.prev_daily_bar.close) if snapshot.prev_daily_bar else price
+
+                        change = price - prev_price
+                        change_pct = (change / prev_price * 100) if prev_price != 0 else 0
+                        arrow = "+" if change >= 0 else ""
+                        st.metric(symbol, f"${price:,.2f}", delta=f"{arrow}{change_pct:.2f}%")
+                    except Exception as e:
+                        st.metric(symbol, "---", delta="unavailable")
+    else:
+        st.info("Add symbols to your watchlist in the sidebar.")
+
+
+# ═══════════════════════════════════════════════════════════════════
+#  TAB 2: STRATEGY MONITOR
+# ═══════════════════════════════════════════════════════════════════
+with main_tab2:
+    c1, c2 = st.columns([1, 2])
+    with c1:
+        stock_timeframe = st.selectbox("Timeframe", list(TIMEFRAME_MAP.keys()), index=2, key="stock_tf")
+    with c2:
+        selected_indicators = st.multiselect(
+            "Indicators",
+            ["RSI", "MA", "MACD", "Bollinger Bands", "VWAP"],
+            default=["RSI", "MA"],
+            key="indicators",
+        )
+
+    stock_watchlist = [s for s in watchlist if '/' not in s]
+
+    if stock_watchlist:
+        tabs = st.tabs(stock_watchlist)
+        for i, symbol in enumerate(stock_watchlist):
+            with tabs[i]:
+                try:
+                    bars = fetch_bars(symbol, timeframe=stock_timeframe)
+                    if bars is None or len(bars) < MA_PERIOD:
+                        st.warning(f"Not enough data for {symbol}")
+                        continue
+
+                    bars['rsi'] = calculate_rsi(bars['close'])
+                    bars['ma'] = calculate_ma(bars['close'])
+
+                    current_price = bars['close'].iloc[-1]
+                    current_rsi = bars['rsi'].iloc[-1]
+                    current_ma = bars['ma'].iloc[-1]
+                    price_vs_ma = ((current_price - current_ma) / current_ma) * 100
+
+                    if current_rsi < RSI_OVERSOLD and current_price < current_ma:
+                        signal, signal_class = "BUY", "signal-buy"
+                    elif current_rsi > RSI_OVERBOUGHT:
+                        signal, signal_class = "SELL", "signal-sell"
+                    else:
+                        signal, signal_class = "HOLD", "signal-hold"
+
+                    m1, m2, m3, m4 = st.columns(4)
+                    with m1:
+                        st.metric("Price", f"${current_price:,.2f}")
+                    with m2:
+                        st.metric("RSI", f"{current_rsi:.1f}")
+                    with m3:
+                        st.metric("MA", f"${current_ma:,.2f}", delta=f"{price_vs_ma:+.2f}%")
+                    with m4:
+                        st.markdown(f'<div style="padding-top:24px"><span class="{signal_class}">{signal}</span></div>', unsafe_allow_html=True)
+
+                    # Combined signal analysis
+                    cs = combined_signal(bars)
+                    cs_signal = cs['signal']
+                    cs_confidence = cs['confidence']
+                    cs_reasons = cs['reasons']
+
+                    st.markdown("**Combined Signal: %s** (confidence: %.0f%%)" % (cs_signal, cs_confidence))
+                    st.progress(cs_confidence / 100.0)
+                    if cs_reasons:
+                        for r in cs_reasons:
+                            st.markdown("- %s" % r)
+                    else:
+                        st.caption("No strong indicators triggered.")
+
+                    # Price chart
+                    fig = go.Figure()
+                    fig.add_trace(go.Candlestick(
+                        x=bars['timestamp'],
+                        open=bars['open'], high=bars['high'],
+                        low=bars['low'], close=bars['close'],
+                        name='Price',
+                        increasing_line_color='#10b981', decreasing_line_color='#ef4444',
+                        increasing_fillcolor='#10b981', decreasing_fillcolor='#ef4444',
+                    ))
+                    if "MA" in selected_indicators:
+                        fig.add_trace(go.Scatter(
+                            x=bars['timestamp'], y=bars['ma'],
+                            name=f'{MA_PERIOD}-MA', line=dict(color='#f59e0b', width=2, dash='dash')
+                        ))
+                    if "Bollinger Bands" in selected_indicators:
+                        bb = calculate_bollinger(bars['close'])
+                        fig.add_trace(go.Scatter(x=bars['timestamp'], y=bb['upper'], name='BB Upper',
+                                                 line=dict(color='rgba(99,102,241,0.4)', width=1)))
+                        fig.add_trace(go.Scatter(x=bars['timestamp'], y=bb['lower'], name='BB Lower',
+                                                 line=dict(color='rgba(99,102,241,0.4)', width=1),
+                                                 fill='tonexty', fillcolor='rgba(99,102,241,0.06)'))
+                    if "VWAP" in selected_indicators:
+                        vwap = calculate_vwap(bars)
+                        fig.add_trace(go.Scatter(x=bars['timestamp'], y=vwap, name='VWAP',
+                                                 line=dict(color='#8b5cf6', width=2, dash='dot')))
+                    fig.update_layout(
+                        height=420,
+                        margin=dict(l=0, r=0, t=10, b=0),
+                        xaxis_rangeslider_visible=False,
+                        xaxis=dict(showgrid=False, title=""),
+                        yaxis=dict(showgrid=True, gridcolor='#f1f5f9', title=""),
+                        plot_bgcolor='rgba(0,0,0,0)',
+                        paper_bgcolor='rgba(0,0,0,0)',
+                        legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
+                    )
+                    st.plotly_chart(fig, use_container_width=True)
+
+                    # Sub-charts
+                    sub_charts = []
+                    if "RSI" in selected_indicators:
+                        sub_charts.append("RSI")
+                    if "MACD" in selected_indicators:
+                        sub_charts.append("MACD")
+
+                    if sub_charts:
+                        sub_cols = st.columns(len(sub_charts))
+                        for j, chart_name in enumerate(sub_charts):
+                            with sub_cols[j]:
+                                if chart_name == "RSI":
+                                    fig_rsi = go.Figure()
+                                    fig_rsi.add_trace(go.Scatter(
+                                        x=bars['timestamp'], y=bars['rsi'],
+                                        name='RSI', line=dict(color='#8b5cf6', width=2),
+                                        fill='tozeroy', fillcolor='rgba(139,92,246,0.06)'
+                                    ))
+                                    fig_rsi.add_hline(y=RSI_OVERSOLD, line_dash="dash", line_color="#10b981", line_width=1)
+                                    fig_rsi.add_hline(y=RSI_OVERBOUGHT, line_dash="dash", line_color="#ef4444", line_width=1)
+                                    fig_rsi.add_hline(y=50, line_dash="dot", line_color="#e2e8f0", line_width=1)
+                                    fig_rsi.update_layout(
+                                        height=250,
+                                        margin=dict(l=0, r=0, t=10, b=0),
+                                        yaxis=dict(range=[0, 100], showgrid=True, gridcolor='#f1f5f9', title=""),
+                                        xaxis=dict(showgrid=False, title=""),
+                                        plot_bgcolor='rgba(0,0,0,0)',
+                                        paper_bgcolor='rgba(0,0,0,0)',
+                                        showlegend=False,
+                                    )
+                                    st.plotly_chart(fig_rsi, use_container_width=True)
+                                elif chart_name == "MACD":
+                                    macd_data = calculate_macd(bars['close'])
+                                    fig_macd = go.Figure()
+                                    fig_macd.add_trace(go.Scatter(
+                                        x=bars['timestamp'], y=macd_data['macd_line'],
+                                        name='MACD', line=dict(color='#3b82f6', width=2)
+                                    ))
+                                    fig_macd.add_trace(go.Scatter(
+                                        x=bars['timestamp'], y=macd_data['signal_line'],
+                                        name='Signal', line=dict(color='#f59e0b', width=2)
+                                    ))
+                                    colors = ['#10b981' if v >= 0 else '#ef4444' for v in macd_data['histogram']]
+                                    fig_macd.add_trace(go.Bar(
+                                        x=bars['timestamp'], y=macd_data['histogram'],
+                                        name='Histogram', marker_color=colors
+                                    ))
+                                    fig_macd.update_layout(
+                                        height=250,
+                                        margin=dict(l=0, r=0, t=10, b=0),
+                                        xaxis=dict(showgrid=False, title=""),
+                                        yaxis=dict(showgrid=True, gridcolor='#f1f5f9', title=""),
+                                        plot_bgcolor='rgba(0,0,0,0)',
+                                        paper_bgcolor='rgba(0,0,0,0)',
+                                        legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
+                                    )
+                                    st.plotly_chart(fig_macd, use_container_width=True)
+
+                    with st.expander(f"Raw Data — {symbol}"):
+                        display = bars[['timestamp', 'open', 'high', 'low', 'close', 'volume', 'rsi', 'ma']].copy()
+                        display['timestamp'] = display['timestamp'].astype(str).str[:16]
+                        st.dataframe(display.round(2), use_container_width=True, hide_index=True)
+
+                except Exception as e:
+                    st.error(f"Error analyzing {symbol}: {e}")
+    else:
+        st.info("Add stock symbols to your watchlist.")
+
+
+# ═══════════════════════════════════════════════════════════════════
+#  TAB 3: CRYPTO
+# ═══════════════════════════════════════════════════════════════════
+with main_tab3:
+    crypto_tf = st.selectbox("Timeframe", list(TIMEFRAME_MAP.keys()), index=2, key="crypto_tf")
+
+    CRYPTO_SYMBOLS = ["BTC/USD", "ETH/USD", "SOL/USD", "AVAX/USD", "LINK/USD", "DOGE/USD"]
+    crypto_tabs = st.tabs(CRYPTO_SYMBOLS)
+
+    for i, symbol in enumerate(CRYPTO_SYMBOLS):
+        with crypto_tabs[i]:
+            try:
+                snapshots = api.get_crypto_snapshot(symbol)
+                snapshot = snapshots[symbol] if isinstance(snapshots, dict) else snapshots
+                price = float(snapshot.latest_trade.p)
+                prev_close = float(snapshot.prev_daily_bar.c) if snapshot.prev_daily_bar else price
+                change = price - prev_close
+                change_pct = (change / prev_close * 100) if prev_close != 0 else 0
+
+                m1, m2, m3 = st.columns(3)
+                with m1:
+                    st.metric(f"{symbol}", f"${price:,.2f}",
+                              delta=f"{'+' if change >= 0 else ''}{change_pct:.2f}%")
+                with m2:
+                    vol = float(snapshot.daily_bar.v) if snapshot.daily_bar else 0
+                    st.metric("24h Volume", f"{vol:,.4f}")
+                with m3:
+                    high = float(snapshot.daily_bar.h) if snapshot.daily_bar else price
+                    low = float(snapshot.daily_bar.l) if snapshot.daily_bar else price
+                    st.metric("24h Range", f"${low:,.0f} — ${high:,.0f}")
+
+                bars = fetch_crypto_bars(symbol, hours=48, timeframe=crypto_tf)
+                if bars is not None and len(bars) >= MA_PERIOD:
+                    bars['rsi'] = calculate_rsi(bars['close'])
+                    bars['ma'] = calculate_ma(bars['close'])
+
+                    fig = go.Figure()
+                    fig.add_trace(go.Candlestick(
+                        x=bars['timestamp'],
+                        open=bars['open'], high=bars['high'],
+                        low=bars['low'], close=bars['close'],
+                        name='Price',
+                        increasing_line_color='#10b981', decreasing_line_color='#ef4444',
+                        increasing_fillcolor='#10b981', decreasing_fillcolor='#ef4444',
+                    ))
+                    if "MA" in selected_indicators:
+                        fig.add_trace(go.Scatter(x=bars['timestamp'], y=bars['ma'],
+                                                 name=f'{MA_PERIOD}-MA', line=dict(color='#f59e0b', width=2, dash='dash')))
+                    if "Bollinger Bands" in selected_indicators:
+                        bb = calculate_bollinger(bars['close'])
+                        fig.add_trace(go.Scatter(x=bars['timestamp'], y=bb['upper'], name='BB Upper',
+                                                 line=dict(color='rgba(99,102,241,0.4)', width=1)))
+                        fig.add_trace(go.Scatter(x=bars['timestamp'], y=bb['lower'], name='BB Lower',
+                                                 line=dict(color='rgba(99,102,241,0.4)', width=1),
+                                                 fill='tonexty', fillcolor='rgba(99,102,241,0.06)'))
+                    if "VWAP" in selected_indicators:
+                        vwap = calculate_vwap(bars)
+                        fig.add_trace(go.Scatter(x=bars['timestamp'], y=vwap, name='VWAP',
+                                                 line=dict(color='#8b5cf6', width=2, dash='dot')))
+                    fig.update_layout(
+                        height=420,
+                        margin=dict(l=0, r=0, t=10, b=0),
+                        xaxis_rangeslider_visible=False,
+                        xaxis=dict(showgrid=False, title=""),
+                        yaxis=dict(showgrid=True, gridcolor='#f1f5f9', title=""),
+                        plot_bgcolor='rgba(0,0,0,0)',
+                        paper_bgcolor='rgba(0,0,0,0)',
+                        legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
+                    )
+                    st.plotly_chart(fig, use_container_width=True)
+
+                    # Sub-charts
+                    crypto_sub = []
+                    if "RSI" in selected_indicators:
+                        crypto_sub.append("RSI")
+                    if "MACD" in selected_indicators:
+                        crypto_sub.append("MACD")
+
+                    if crypto_sub:
+                        sub_cols = st.columns(len(crypto_sub))
+                        for j, chart_name in enumerate(crypto_sub):
+                            with sub_cols[j]:
+                                if chart_name == "RSI":
+                                    fig_rsi = go.Figure()
+                                    fig_rsi.add_trace(go.Scatter(
+                                        x=bars['timestamp'], y=bars['rsi'],
+                                        name='RSI', line=dict(color='#8b5cf6', width=2),
+                                        fill='tozeroy', fillcolor='rgba(139,92,246,0.06)'
+                                    ))
+                                    fig_rsi.add_hline(y=RSI_OVERSOLD, line_dash="dash", line_color="#10b981", line_width=1)
+                                    fig_rsi.add_hline(y=RSI_OVERBOUGHT, line_dash="dash", line_color="#ef4444", line_width=1)
+                                    fig_rsi.update_layout(
+                                        height=250,
+                                        margin=dict(l=0, r=0, t=10, b=0),
+                                        yaxis=dict(range=[0, 100], showgrid=True, gridcolor='#f1f5f9', title=""),
+                                        xaxis=dict(showgrid=False, title=""),
+                                        plot_bgcolor='rgba(0,0,0,0)',
+                                        paper_bgcolor='rgba(0,0,0,0)',
+                                        showlegend=False,
+                                    )
+                                    st.plotly_chart(fig_rsi, use_container_width=True)
+                                elif chart_name == "MACD":
+                                    macd_data = calculate_macd(bars['close'])
+                                    fig_macd = go.Figure()
+                                    fig_macd.add_trace(go.Scatter(
+                                        x=bars['timestamp'], y=macd_data['macd_line'],
+                                        name='MACD', line=dict(color='#3b82f6', width=2)))
+                                    fig_macd.add_trace(go.Scatter(
+                                        x=bars['timestamp'], y=macd_data['signal_line'],
+                                        name='Signal', line=dict(color='#f59e0b', width=2)))
+                                    colors = ['#10b981' if v >= 0 else '#ef4444' for v in macd_data['histogram']]
+                                    fig_macd.add_trace(go.Bar(
+                                        x=bars['timestamp'], y=macd_data['histogram'],
+                                        name='Histogram', marker_color=colors))
+                                    fig_macd.update_layout(
+                                        height=250,
+                                        margin=dict(l=0, r=0, t=10, b=0),
+                                        xaxis=dict(showgrid=False, title=""),
+                                        yaxis=dict(showgrid=True, gridcolor='#f1f5f9', title=""),
+                                        plot_bgcolor='rgba(0,0,0,0)',
+                                        paper_bgcolor='rgba(0,0,0,0)',
+                                        legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
+                                    )
+                                    st.plotly_chart(fig_macd, use_container_width=True)
+
+                    # Signal
+                    current_rsi = bars['rsi'].iloc[-1]
+                    current_ma = bars['ma'].iloc[-1]
+                    if current_rsi < RSI_OVERSOLD and price < current_ma:
+                        st.markdown('<span class="signal-buy">BUY — RSI %.1f oversold, below MA</span>' % current_rsi, unsafe_allow_html=True)
+                    elif current_rsi > RSI_OVERBOUGHT:
+                        st.markdown('<span class="signal-sell">SELL — RSI %.1f overbought</span>' % current_rsi, unsafe_allow_html=True)
+                    else:
+                        st.markdown('<span class="signal-hold">HOLD — RSI %.1f</span>' % current_rsi, unsafe_allow_html=True)
+                else:
+                    st.warning(f"Not enough data for {symbol}")
+
+            except Exception as e:
+                st.error(f"Error loading {symbol}: {e}")
+
+
+# ═══════════════════════════════════════════════════════════════════
+#  TAB 4: POSITIONS
+# ═══════════════════════════════════════════════════════════════════
+with main_tab4:
+    try:
+        positions = api.list_positions()
+
+        if not positions:
+            st.info("No open positions. Use the sidebar to place your first trade.")
+        else:
+            pos_data = []
+            total_pl = 0
+            total_mv = 0
+
+            for pos in positions:
+                pl = float(pos.unrealized_pl)
+                pl_pct = float(pos.unrealized_plpc) * 100
+                mv = float(pos.market_value)
+                total_pl += pl
+                total_mv += mv
+
+                pos_data.append({
+                    'Symbol': pos.symbol,
+                    'Side': 'Long' if pos.side == 'long' else 'Short',
+                    'Qty': int(pos.qty),
+                    'Avg Cost': f"${float(pos.avg_entry_price):,.2f}",
+                    'Current': f"${float(pos.current_price):,.2f}",
+                    'Value': f"${mv:,.2f}",
+                    'P/L': f"${pl:+,.2f}",
+                    'P/L %': f"{pl_pct:+.2f}%",
+                })
+
+            st.dataframe(pd.DataFrame(pos_data), use_container_width=True, hide_index=True)
+
+            c1, c2, c3 = st.columns(3)
+            with c1:
+                st.metric("Unrealized P/L", f"${total_pl:+,.2f}")
+            with c2:
+                st.metric("Market Value", f"${total_mv:,.2f}")
+            with c3:
+                st.metric("Positions", str(len(positions)))
+
+    except Exception as e:
+        st.error(f"Error loading positions: {e}")
+
+
+# ═══════════════════════════════════════════════════════════════════
+#  TAB 5: ORDERS + TRADE HISTORY
+# ═══════════════════════════════════════════════════════════════════
+with main_tab5:
+    orders_sub1, orders_sub2 = st.tabs(["Recent Orders", "Trade History"])
+
+    with orders_sub1:
+        try:
+            orders = api.list_orders(limit=15, status='all')
+            if not orders:
+                st.info("No orders placed yet.")
+            else:
+                order_data = []
+                for o in orders:
+                    filled = f"${float(o.filled_avg_price):,.2f}" if o.filled_avg_price else "---"
+                    submitted = str(o.submitted_at)[:19] if o.submitted_at else "---"
+
+                    status_map = {"filled": "Filled", "new": "Pending", "partially_filled": "Partial",
+                                  "canceled": "Canceled", "expired": "Expired", "rejected": "Rejected"}
+
+                    order_data.append({
+                        'Side': o.side.upper(),
+                        'Symbol': o.symbol,
+                        'Qty': o.qty,
+                        'Type': o.type.upper(),
+                        'Fill Price': filled,
+                        'Status': status_map.get(o.status, o.status),
+                        'Time': submitted,
+                    })
+
+                st.dataframe(pd.DataFrame(order_data), use_container_width=True, hide_index=True)
+
+        except Exception as e:
+            st.error(f"Error loading orders: {e}")
+
+    with orders_sub2:
+        trade_history = get_trades()
+        if trade_history:
+            trade_df = pd.DataFrame(trade_history)
+            st.dataframe(trade_df, use_container_width=True, hide_index=True)
+
+            csv = trade_df.to_csv(index=False).encode('utf-8')
+            st.download_button("Download CSV", data=csv, file_name="trade_history.csv", mime="text/csv")
+        else:
+            st.info("No trades logged yet.")
+
+
+# ═══════════════════════════════════════════════════════════════════
+#  TAB 6: ALERTS
+# ═══════════════════════════════════════════════════════════════════
+with main_tab6:
+    newly_triggered = check_alerts()
+    for t in newly_triggered:
+        st.toast(f"ALERT: {t['symbol']} hit ${t['triggered_price']:,.2f}", icon="🚨")
+
+    alerts = get_alerts()
+
+    if not alerts:
+        st.info("No price alerts. Add one from the sidebar.")
+    else:
+        triggered_alerts = [a for a in alerts if a['triggered']]
+        pending_alerts = [a for a in alerts if not a['triggered']]
+
+        if triggered_alerts:
+            for a in triggered_alerts:
+                st.warning(
+                    f"**TRIGGERED** — {a['symbol']} went {a['direction']} ${a['target']:,.2f} "
+                    f"(${a.get('triggered_price', 0):,.2f} at {a.get('triggered_at', '?')})"
+                )
+            if st.button("Clear Triggered"):
+                clear_triggered()
+                st.rerun()
+
+        if pending_alerts:
+            alert_data = []
+            for i, a in enumerate(alerts):
+                if not a['triggered']:
+                    alert_data.append({
+                        '#': i,
+                        'Symbol': a['symbol'],
+                        'Direction': a['direction'].upper(),
+                        'Target': f"${a['target']:,.2f}",
+                        'Created': a.get('created_at', ''),
+                    })
+            st.dataframe(pd.DataFrame(alert_data), use_container_width=True, hide_index=True)
+
+            c1, c2 = st.columns([1, 3])
+            with c1:
+                remove_idx = st.number_input("Alert #", min_value=0, max_value=len(alerts) - 1, value=0, key="rm_alert")
+            with c2:
+                st.markdown("")
+                st.markdown("")
+                if st.button("Remove"):
+                    remove_alert(int(remove_idx))
+                    st.rerun()
+        elif triggered_alerts:
+            st.success("All alerts triggered.")
+
+
+# ═══════════════════════════════════════════════════════════════════
+#  TAB 7: BACKTESTING
+# ═══════════════════════════════════════════════════════════════════
+with main_tab7:
+    st.caption("Test the RSI + MA strategy against historical data")
+
+    with st.expander("Parameters", expanded=True):
+        p1, p2, p3, p4 = st.columns(4)
+        with p1:
+            bt_symbol = st.text_input("Symbol", value="NVDA", key="bt_symbol").upper()
+        with p2:
+            bt_days = st.slider("Days", 30, 365, 90, key="bt_days")
+        with p3:
+            bt_capital = st.number_input("Capital ($)", min_value=1000, value=100000, key="bt_capital")
+        with p4:
+            bt_qty = st.number_input("Trade Qty", min_value=1, value=5, key="bt_qty")
+
+        p5, p6, p7, p8 = st.columns(4)
+        with p5:
+            bt_rsi_period = st.number_input("RSI Period", min_value=2, max_value=50, value=14, key="bt_rsi")
+        with p6:
+            bt_ma_period = st.number_input("MA Period", min_value=2, max_value=100, value=20, key="bt_ma")
+        with p7:
+            bt_rsi_oversold = st.number_input("Oversold", min_value=1, max_value=50, value=30, key="bt_oversold")
+        with p8:
+            bt_rsi_overbought = st.number_input("Overbought", min_value=50, max_value=99, value=70, key="bt_overbought")
+
+    bt_profit_target = st.number_input("Profit Target (%)", min_value=0.1, max_value=50.0, value=2.0, step=0.1, key="bt_pt") / 100.0
+
+    if st.button("Run Backtest", use_container_width=True, type="primary", key="bt_run"):
+        with st.spinner("Running backtest..."):
+            result = run_backtest(
+                symbol=bt_symbol, days=bt_days, initial_capital=float(bt_capital),
+                trade_qty=bt_qty, rsi_period=bt_rsi_period, ma_period=bt_ma_period,
+                rsi_oversold=float(bt_rsi_oversold), rsi_overbought=float(bt_rsi_overbought),
+                profit_target=bt_profit_target,
+            )
+            if result is not None:
+                st.session_state['bt_result'] = result
+                st.session_state['bt_symbol_display'] = bt_symbol
+            else:
+                st.error("Backtest failed — not enough data.")
+                if 'bt_result' in st.session_state:
+                    del st.session_state['bt_result']
+
+    if 'bt_result' in st.session_state:
+        result = st.session_state['bt_result']
+        metrics = result['metrics']
+
+        mc1, mc2, mc3, mc4, mc5, mc6 = st.columns(6)
+        with mc1:
+            st.metric("Return", "%+.2f%%" % metrics['total_return_pct'])
+        with mc2:
+            st.metric("Final Equity", "$%s" % "{:,.2f}".format(metrics['final_equity']))
+        with mc3:
+            st.metric("Win Rate", "%.1f%%" % metrics['win_rate'])
+        with mc4:
+            st.metric("Drawdown", "%.2f%%" % metrics['max_drawdown'])
+        with mc5:
+            st.metric("Trades", str(metrics['total_trades']))
+        with mc6:
+            st.metric("Sharpe", "%.2f" % metrics['sharpe_ratio'])
+
+        if result['equity_curve']:
+            eq_df = pd.DataFrame(result['equity_curve'])
+            fig_eq = go.Figure()
+            fig_eq.add_trace(go.Scatter(
+                x=eq_df['timestamp'], y=eq_df['equity'],
+                name='Equity', line=dict(color='#10b981', width=2.5),
+                fill='tozeroy', fillcolor='rgba(16,185,129,0.06)',
+            ))
+            fig_eq.add_hline(y=float(bt_capital), line_dash="dot", line_color="#94a3b8", line_width=1)
+            fig_eq.update_layout(
+                height=350,
+                margin=dict(l=0, r=0, t=10, b=0),
+                xaxis=dict(showgrid=False, title=""),
+                yaxis=dict(showgrid=True, gridcolor='#f1f5f9', title=""),
+                plot_bgcolor='rgba(0,0,0,0)',
+                paper_bgcolor='rgba(0,0,0,0)',
+                showlegend=False,
+            )
+            st.plotly_chart(fig_eq, use_container_width=True)
+
+        if result['trades']:
+            with st.expander("Trade Log"):
+                st.dataframe(pd.DataFrame(result['trades']), use_container_width=True, hide_index=True)
+        else:
+            st.info("No trades triggered during this period.")
+
+
+# ── Footer ───────────────────────────────────────────────────────────
+st.markdown("---")
+st.markdown(
+    '<p style="text-align:center; color:#94a3b8; font-size:0.75rem;">'
+    'KhmerTrading v2.0 &nbsp;&middot;&nbsp; Paper Trading &nbsp;&middot;&nbsp; '
+    'Stock: IEX &nbsp;&middot;&nbsp; Crypto: Alpaca &nbsp;&middot;&nbsp; Not financial advice'
+    '</p>',
+    unsafe_allow_html=True,
+)
