@@ -55,12 +55,14 @@ def _show_logo(small=False):
     """Display the logo centered."""
     logo_path = Path(__file__).parent.parent / "khmertrading-logo.png"
     if logo_path.exists():
-        if small:
-            st.image(str(logo_path), width=120)
-        else:
-            col1, col2, col3 = st.columns([1, 1, 1])
-            with col2:
-                st.image(str(logo_path), width=200)
+        import base64
+        with open(logo_path, "rb") as f:
+            logo_b64 = base64.b64encode(f.read()).decode()
+        width = 120 if small else 200
+        st.markdown(
+            f'<div style="text-align:center;"><img src="data:image/png;base64,{logo_b64}" width="{width}"></div>',
+            unsafe_allow_html=True,
+        )
 
 
 def check_auth() -> bool:

@@ -341,8 +341,8 @@ except Exception as e:
 with st.sidebar:
     from auth import _show_logo
     _show_logo(small=True)
-    st.markdown("## KhmerTrading AI Bot")
-    st.caption("Family investment dashboard. Monitor markets, analyze strategies, and manage trades.")
+    st.markdown("<h3 style='text-align:center; margin-top:0;'>KhmerTrading AI Bot</h3>", unsafe_allow_html=True)
+    st.markdown("<p style='text-align:center; color:#94a3b8; font-size:0.75rem; margin-top:-10px;'>Family investment dashboard</p>", unsafe_allow_html=True)
 
     st.markdown("")
 
@@ -1427,9 +1427,11 @@ leveraged speculation.
 
 # ── Footer ───────────────────────────────────────────────────────────
 st.markdown("---")
+from auth import _show_logo as _footer_logo
+_footer_logo(small=True)
 st.markdown(
-    '<p style="text-align:center; color:#94a3b8; font-size:0.75rem;">'
-    'KhmerTrading v2.0 &nbsp;&middot;&nbsp; Private Family Use Only &nbsp;&middot;&nbsp; Not Financial Advice'
+    '<p style="text-align:center; color:#94a3b8; font-size:0.75rem; margin-top:0.5rem;">'
+    'KhmerTrading AI Bot &nbsp;&middot;&nbsp; Private Family Investment Platform &nbsp;&middot;&nbsp; Not Financial Advice'
     '</p>',
     unsafe_allow_html=True,
 )
