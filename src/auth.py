@@ -51,13 +51,16 @@ def _make_token(username, password):
     return hashlib.sha256(f"{username}:{password}:khmertrading".encode()).hexdigest()[:32]
 
 
-def _show_logo():
+def _show_logo(small=False):
     """Display the logo centered."""
     logo_path = Path(__file__).parent.parent / "khmertrading-logo.png"
     if logo_path.exists():
-        col1, col2, col3 = st.columns([1, 2, 1])
-        with col2:
-            st.image(str(logo_path), use_container_width=True)
+        if small:
+            st.image(str(logo_path), width=120)
+        else:
+            col1, col2, col3 = st.columns([1, 1, 1])
+            with col2:
+                st.image(str(logo_path), width=200)
 
 
 def check_auth() -> bool:

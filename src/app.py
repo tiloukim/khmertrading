@@ -29,7 +29,7 @@ from yahoo_data import get_live_price, fetch_yahoo_bars
 
 # ── Page Config ──────────────────────────────────────────────────────
 st.set_page_config(
-    page_title="KhmerTrading — Private",
+    page_title="KhmerTrading AI Bot",
     page_icon="📈",
     layout="wide",
     initial_sidebar_state="expanded",
@@ -339,7 +339,9 @@ except Exception as e:
 
 # ── Sidebar ──────────────────────────────────────────────────────────
 with st.sidebar:
-    st.markdown("## KhmerTrading")
+    from auth import _show_logo
+    _show_logo(small=True)
+    st.markdown("## KhmerTrading AI Bot")
     st.caption("Family investment dashboard. Monitor markets, analyze strategies, and manage trades.")
 
     st.markdown("")
