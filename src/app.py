@@ -418,7 +418,10 @@ with st.sidebar:
         trade_symbol = st.text_input("Symbol", value="NVDA", placeholder="AAPL, TSLA, BTC/USD").upper()
         c1, c2 = st.columns(2)
         with c1:
-            trade_qty = st.number_input("Qty", min_value=1, max_value=10000, value=5, help="Number of shares or coins to trade")
+            if '/' in trade_symbol:
+                trade_qty = st.number_input("Qty", min_value=0.001, max_value=10000.0, value=0.01, step=0.01, format="%.3f", help="Fractional amounts supported for crypto (e.g. 0.5)")
+            else:
+                trade_qty = st.number_input("Qty", min_value=1, max_value=10000, value=5, help="Number of shares to trade")
         with c2:
             order_type = st.selectbox("Type", ["Market", "Limit", "Stop", "Bracket"])
 
