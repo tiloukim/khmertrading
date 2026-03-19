@@ -118,9 +118,26 @@ def send_email_report(to_email, subject, body):
 
 def send_daily_report():
     # type: () -> bool
-    """Generate and send the daily report. Returns True on success."""
-    if not REPORT_EMAIL:
-        return False
+    """Generate and send the daily report via email and/or Telegram. Returns True if any channel succeeds."""
+    from notifications import send_telegram
+
     report = generate_daily_report()
-    subject = "KhmerTrading Report - {}".format(datetime.now().strftime('%Y-%m-%d'))
-    return send_email_report(REPORT_EMAIL, subject, report)
+    success = False
+
+    # Try Telegram
+    try:
+        if send_telegram(report):
+            success = True
+    except Exception:
+        pass
+
+    # Try Email
+    if REPORT_EMAIL:
+        try:
+            subject = "KhmerTrading Report - {}".format(datetime.now().strftime('%Y-%m-%d'))
+            if send_email_report(REPORT_EMAIL, subject, report):
+                success = True
+        except Exception:
+            pass
+
+    return success
