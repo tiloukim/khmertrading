@@ -390,14 +390,18 @@ except Exception as e:
 
 # ── Sidebar ──────────────────────────────────────────────────────────
 with st.sidebar:
-    st.markdown("## KhmerTrading")
+    st.markdown("## Welcome to KhmerTrading")
+    st.caption("Your AI-powered trading assistant for stocks and crypto. Use the tools below to monitor markets, analyze strategies, and place trades.")
 
-    trading_mode = st.selectbox("Mode", ["Paper Trading", "Live Trading"], key="trading_mode")
-    if trading_mode == "Live Trading":
-        st.markdown('<span style="color: #dc2626; font-weight: 700;">CAUTION: Live trading uses real money!</span>', unsafe_allow_html=True)
-        live_confirmed = st.checkbox("I understand the risks", key="live_confirm")
-        if not live_confirmed:
-            st.warning("Check the box above to confirm live trading.")
+    st.markdown("")
+
+    with st.expander("Settings"):
+        trading_mode = st.selectbox("Mode", ["Paper Trading", "Live Trading"], key="trading_mode")
+        if trading_mode == "Live Trading":
+            st.markdown('<span style="color: #dc2626; font-weight: 700;">CAUTION: Live trading uses real money!</span>', unsafe_allow_html=True)
+            live_confirmed = st.checkbox("I understand the risks", key="live_confirm")
+            if not live_confirmed:
+                st.warning("Check the box above to confirm live trading.")
     mode_label = "Live Trading" if trading_mode == "Live Trading" else "Paper Trading"
     pill_bg = "#fee2e2" if trading_mode == "Live Trading" else "#d1fae5"
     pill_color = "#991b1b" if trading_mode == "Live Trading" else "#065f46"
@@ -410,10 +414,11 @@ with st.sidebar:
 
     # ── Quick Trade
     with st.expander("Quick Trade", expanded=True):
+        st.caption("Enter a stock ticker (e.g. AAPL) or crypto pair (e.g. BTC/USD)")
         trade_symbol = st.text_input("Symbol", value="NVDA", placeholder="AAPL, TSLA, BTC/USD").upper()
         c1, c2 = st.columns(2)
         with c1:
-            trade_qty = st.number_input("Qty", min_value=1, max_value=10000, value=5)
+            trade_qty = st.number_input("Qty", min_value=1, max_value=10000, value=5, help="Number of shares or coins to trade")
         with c2:
             order_type = st.selectbox("Type", ["Market", "Limit", "Stop", "Bracket"])
 
@@ -536,8 +541,8 @@ if auto_refresh_on:
 #  MAIN CONTENT
 # ════════════════════════════════════════════════════════════════════
 
-st.markdown('<p class="page-title">KhmerTrading</p>', unsafe_allow_html=True)
-st.markdown('<p class="page-subtitle">AI-Powered Stock & Crypto Trading Platform</p>', unsafe_allow_html=True)
+st.markdown('<p class="page-title">Dashboard</p>', unsafe_allow_html=True)
+st.markdown('<p class="page-subtitle">Account overview and market analysis</p>', unsafe_allow_html=True)
 
 # ── Account Overview ─────────────────────────────────────────────────
 equity = float(account.equity)
@@ -552,16 +557,17 @@ record_snapshot(equity, cash, portfolio_value)
 
 col1, col2, col3, col4, col5 = st.columns(5)
 with col1:
-    st.metric("Equity", f"${equity:,.2f}", delta=f"{total_pl_pct:+.2f}%")
+    st.metric("Equity", f"${equity:,.2f}", delta=f"{total_pl_pct:+.2f}%", help="Total account value including all positions and cash")
 with col2:
-    st.metric("Cash", f"${cash:,.2f}")
+    st.metric("Cash", f"${cash:,.2f}", help="Available cash not invested in any position")
 with col3:
-    st.metric("Portfolio", f"${portfolio_value:,.2f}")
+    st.metric("Portfolio", f"${portfolio_value:,.2f}", help="Total value of all your current positions")
 with col4:
-    st.metric("Buying Power", f"${buying_power:,.2f}")
+    st.metric("Buying Power", f"${buying_power:,.2f}", help="Maximum amount you can use to open new positions")
 with col5:
     pl_label = "Profit" if total_pl >= 0 else "Loss"
-    st.metric("P/L", f"${total_pl:,.2f}", delta=pl_label)
+    st.metric("P/L", f"${total_pl:,.2f}", delta=pl_label, help="Total profit or loss since account start ($100k)")
+st.caption("This is paper trading — no real money is at risk." if trading_mode != "Live Trading" else "LIVE TRADING — real money is at risk.")
 
 # ── Portfolio Performance ────────────────────────────────────────────
 snap_df = get_snapshots_df(days=30)
@@ -597,6 +603,7 @@ main_tab1, main_tab2, main_tab3, main_tab4, main_tab5, main_tab6, main_tab7, mai
 #  TAB 1: WATCHLIST
 # ═══════════════════════════════════════════════════════════════════
 with main_tab1:
+    st.caption("Real-time prices for your tracked assets")
     if watchlist:
         # Limit columns to avoid squishing
         per_row = min(len(watchlist), 4)
@@ -616,6 +623,7 @@ with main_tab1:
                             st.metric(symbol, "---", delta="unavailable")
                     except Exception as e:
                         st.metric(symbol, "---", delta="unavailable")
+        st.caption("Click on the Strategy tab for detailed analysis of each stock.")
     else:
         st.info("Add symbols to your watchlist in the sidebar.")
 
@@ -624,6 +632,7 @@ with main_tab1:
 #  TAB 2: STRATEGY MONITOR
 # ═══════════════════════════════════════════════════════════════════
 with main_tab2:
+    st.caption("AI-powered buy/sell signals based on technical analysis")
     c1, c2, c3 = st.columns([1, 2, 1])
     with c1:
         stock_timeframe = st.selectbox("Timeframe", list(TIMEFRAME_MAP.keys()), index=2, key="stock_tf")
@@ -892,6 +901,7 @@ with main_tab2:
 #  TAB 3: CRYPTO
 # ═══════════════════════════════════════════════════════════════════
 with main_tab3:
+    st.caption("Live cryptocurrency prices and analysis")
     crypto_tf = st.selectbox("Timeframe", list(TIMEFRAME_MAP.keys()), index=2, key="crypto_tf")
 
     CRYPTO_SYMBOLS = ["BTC/USD", "ETH/USD", "SOL/USD", "AVAX/USD", "LINK/USD", "DOGE/USD"]
@@ -1076,6 +1086,7 @@ with main_tab3:
 #  TAB 4: POSITIONS
 # ═══════════════════════════════════════════════════════════════════
 with main_tab4:
+    st.caption("Your current holdings and profit/loss")
     try:
         positions = api.list_positions()
 
@@ -1153,6 +1164,7 @@ with main_tab4:
 #  TAB 5: ORDERS + TRADE HISTORY
 # ═══════════════════════════════════════════════════════════════════
 with main_tab5:
+    st.caption("Recent order history")
     orders_sub1, orders_sub2 = st.tabs(["Recent Orders", "Trade History"])
 
     with orders_sub1:
@@ -1200,6 +1212,7 @@ with main_tab5:
 #  TAB 6: ALERTS
 # ═══════════════════════════════════════════════════════════════════
 with main_tab6:
+    st.caption("Price alerts you've set")
     newly_triggered = check_alerts()
     for t in newly_triggered:
         st.toast(f"ALERT: {t['symbol']} hit ${t['triggered_price']:,.2f}", icon="🚨")
@@ -1252,7 +1265,7 @@ with main_tab6:
 #  TAB 7: BACKTESTING
 # ═══════════════════════════════════════════════════════════════════
 with main_tab7:
-    st.caption("Test the RSI + MA strategy against historical data")
+    st.caption("Test strategies on historical data")
 
     with st.expander("Parameters", expanded=True):
         p1, p2, p3, p4 = st.columns(4)
