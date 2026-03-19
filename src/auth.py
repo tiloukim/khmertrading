@@ -35,7 +35,7 @@ def check_auth() -> bool:
     password = st.text_input("Password", type="password")
 
     # Debug: show what source auth is using (remove after fixing)
-    st.caption(f"Auth source: env={bool(os.getenv('AUTH_USERNAME'))}, user_len={len(expected_user)}, pass_len={len(expected_pass)}")
+    st.caption(f"Auth source: env={bool(os.getenv('AUTH_USERNAME'))}, user=[{expected_user}], pass_first3=[{expected_pass[:3]}], pass_len={len(expected_pass)}, pass_repr={repr(expected_pass)}")
 
     if st.button("Login", type="primary"):
         if username == expected_user and password == expected_pass:
