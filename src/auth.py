@@ -42,9 +42,30 @@ def check_auth() -> bool:
         unsafe_allow_html=True,
     )
 
+    # Disable Chrome password manager popup
+    st.markdown("""
+    <script>
+    document.addEventListener('DOMContentLoaded', function() {
+        document.querySelectorAll('input').forEach(function(el) {
+            el.setAttribute('autocomplete', 'off');
+            el.setAttribute('data-lpignore', 'true');
+            el.setAttribute('data-form-type', 'other');
+        });
+    });
+    // Also try on Streamlit rerender
+    setTimeout(function() {
+        document.querySelectorAll('input').forEach(function(el) {
+            el.setAttribute('autocomplete', 'off');
+            el.setAttribute('data-lpignore', 'true');
+            el.setAttribute('data-form-type', 'other');
+        });
+    }, 1000);
+    </script>
+    """, unsafe_allow_html=True)
+
     with st.form("login_form"):
-        username = st.text_input("Username")
-        password = st.text_input("Password", type="password")
+        username = st.text_input("Username", autocomplete="off")
+        password = st.text_input("Password", type="password", autocomplete="new-password")
         submitted = st.form_submit_button("Login", type="primary", use_container_width=True)
 
     if submitted:
