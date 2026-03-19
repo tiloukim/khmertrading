@@ -363,6 +363,10 @@ with st.sidebar:
     )
     st.markdown("")
 
+    # ── Auto Trading
+    from auto_trader import render_auto_trade_controls
+    render_auto_trade_controls()
+
     # ── Quick Trade
     with st.expander("Quick Trade", expanded=True):
         trade_symbols = ["NVDA", "TSLA", "AAPL", "MSFT", "AMZN", "GOOG", "META", "AMD", "NFLX", "SPY",
