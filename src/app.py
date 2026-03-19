@@ -439,37 +439,34 @@ with st.sidebar:
                         st.error("Failed")
                     st.rerun()
         else:
-            col_buy, col_sell = st.columns(2)
-            with col_buy:
-                if st.button("BUY", use_container_width=True, type="primary"):
-                    if order_type == "Market":
-                        result = market_buy(trade_symbol, trade_qty)
-                    elif order_type == "Limit":
-                        result = limit_buy(trade_symbol, trade_qty, trade_limit_price)
-                    elif order_type == "Stop":
-                        result = stop_order(trade_symbol, trade_qty, trade_stop_price, side='buy')
-                    else:
-                        result = None
-                    if result:
-                        st.success(f"Bought {trade_qty}x {trade_symbol}")
-                    else:
-                        st.error("Buy failed")
-                    st.rerun()
-            with col_sell:
-                if st.button("SELL", use_container_width=True):
-                    if order_type == "Market":
-                        result = market_sell(trade_symbol, trade_qty)
-                    elif order_type == "Limit":
-                        result = limit_sell(trade_symbol, trade_qty, trade_limit_price)
-                    elif order_type == "Stop":
-                        result = stop_order(trade_symbol, trade_qty, trade_stop_price, side='sell')
-                    else:
-                        result = None
-                    if result:
-                        st.success(f"Sold {trade_qty}x {trade_symbol}")
-                    else:
-                        st.error("Sell failed")
-                    st.rerun()
+            if st.button("BUY", use_container_width=True, type="primary"):
+                if order_type == "Market":
+                    result = market_buy(trade_symbol, trade_qty)
+                elif order_type == "Limit":
+                    result = limit_buy(trade_symbol, trade_qty, trade_limit_price)
+                elif order_type == "Stop":
+                    result = stop_order(trade_symbol, trade_qty, trade_stop_price, side='buy')
+                else:
+                    result = None
+                if result:
+                    st.success(f"Bought {trade_qty}x {trade_symbol}")
+                else:
+                    st.error("Buy failed")
+                st.rerun()
+            if st.button("SELL", use_container_width=True):
+                if order_type == "Market":
+                    result = market_sell(trade_symbol, trade_qty)
+                elif order_type == "Limit":
+                    result = limit_sell(trade_symbol, trade_qty, trade_limit_price)
+                elif order_type == "Stop":
+                    result = stop_order(trade_symbol, trade_qty, trade_stop_price, side='sell')
+                else:
+                    result = None
+                if result:
+                    st.success(f"Sold {trade_qty}x {trade_symbol}")
+                else:
+                    st.error("Sell failed")
+                st.rerun()
 
     # ── Watchlist
     with st.expander("Watchlist", expanded=True):
