@@ -4,3 +4,5 @@ __pycache__/
 trades.db
 .streamlit/secrets.toml
 live_bot.log
+.streamlit/secrets.toml
+users.json
