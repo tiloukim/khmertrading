@@ -14,12 +14,17 @@ def check_auth() -> bool:
             _show_api_key_form()
         return True
 
+    import os
     try:
         expected_user = st.secrets["auth"]["username"]
         expected_pass = st.secrets["auth"]["password"]
     except (KeyError, FileNotFoundError):
-        # Secrets not configured – skip auth so the app works in dev
-        return True
+        # Fall back to environment variables
+        expected_user = os.getenv("AUTH_USERNAME", "")
+        expected_pass = os.getenv("AUTH_PASSWORD", "")
+        if not expected_user or not expected_pass:
+            # No auth configured – skip auth (dev mode only)
+            return True
 
     st.markdown(
         "<h2 style='text-align:center; margin-top:3rem;'>🔒 KhmerTrading Login</h2>",
