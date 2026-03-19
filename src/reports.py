@@ -85,7 +85,7 @@ def generate_daily_report():
             lines.append("⏳ {} {} ${:,.2f}".format(a['symbol'], a['direction'], a['target']))
         lines.append("")
 
-    lines.append("— KhmerTrading • Private Family Use Only")
+    lines.append("— KhmerTrading • Private Family Investment Platform")
 
     return "\n".join(lines)
 
