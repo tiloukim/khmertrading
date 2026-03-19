@@ -29,7 +29,7 @@ from yahoo_data import get_live_price, fetch_yahoo_bars
 
 # ── Page Config ──────────────────────────────────────────────────────
 st.set_page_config(
-    page_title="KhmerTrading",
+    page_title="KhmerTrading — Private",
     page_icon="📈",
     layout="wide",
     initial_sidebar_state="expanded",
@@ -322,57 +322,6 @@ st.markdown("""
 if not check_auth():
     st.stop()
 
-# ── Landing Page ────────────────────────────────────────────────────
-if 'show_dashboard' not in st.session_state:
-    st.session_state['show_dashboard'] = False
-
-if not st.session_state['show_dashboard']:
-    st.markdown("""
-    <div style="text-align: center; padding: 3rem 1rem 1rem;">
-        <h1 style="font-size: 3.5rem; font-weight: 900; color: #0f172a; letter-spacing: -0.03em; margin-bottom: 0.25rem;">
-            KhmerTrading
-        </h1>
-        <p style="font-size: 1.25rem; color: #64748b; margin-bottom: 3rem;">
-            AI-Powered Stock &amp; Crypto Trading Platform
-        </p>
-    </div>
-    """, unsafe_allow_html=True)
-
-    c1, c2, c3 = st.columns(3)
-    with c1:
-        st.markdown("### Smart Signals")
-        st.markdown("Combined RSI + MACD + Bollinger analysis for high-confidence trade signals.")
-    with c2:
-        st.markdown("### Crypto Trading")
-        st.markdown("BTC, ETH, SOL and more — trade crypto alongside stocks in one platform.")
-    with c3:
-        st.markdown("### Risk Management")
-        st.markdown("Position sizing, drawdown protection, and bracket orders to manage risk.")
-
-    st.markdown("")
-
-    c4, c5, c6 = st.columns(3)
-    with c4:
-        st.markdown("### Real-time Alerts")
-        st.markdown("Telegram & Discord notifications when your price targets are hit.")
-    with c5:
-        st.markdown("### Backtesting")
-        st.markdown("Test strategies on historical data before risking real capital.")
-    with c6:
-        st.markdown("### Multi-Strategy")
-        st.markdown("Momentum, mean reversion, breakout — choose the strategy that fits.")
-
-    st.markdown("")
-    st.markdown("")
-
-    col_left, col_center, col_right = st.columns([1, 2, 1])
-    with col_center:
-        if st.button("Enter Dashboard", use_container_width=True, type="primary"):
-            st.session_state['show_dashboard'] = True
-            st.rerun()
-
-    st.stop()
-
 # ── Paper vs Live Mode ──────────────────────────────────────────────
 # (trading_mode selectbox is in the sidebar below, but we need the value
 #  before connecting, so we initialize session state here)
@@ -390,8 +339,8 @@ except Exception as e:
 
 # ── Sidebar ──────────────────────────────────────────────────────────
 with st.sidebar:
-    st.markdown("## Welcome to KhmerTrading")
-    st.caption("Your AI-powered trading assistant for stocks and crypto. Use the tools below to monitor markets, analyze strategies, and place trades.")
+    st.markdown("## KhmerTrading")
+    st.caption("Family investment dashboard. Monitor markets, analyze strategies, and manage trades.")
 
     st.markdown("")
 
@@ -1415,8 +1364,16 @@ leveraged speculation.
 st.markdown("---")
 st.markdown(
     '<p style="text-align:center; color:#94a3b8; font-size:0.75rem;">'
-    'KhmerTrading v2.0 &nbsp;&middot;&nbsp; Paper Trading &nbsp;&middot;&nbsp; '
-    'Stock: IEX &nbsp;&middot;&nbsp; Crypto: Alpaca &nbsp;&middot;&nbsp; Not financial advice'
+    'KhmerTrading v2.0 &nbsp;&middot;&nbsp; Private Family Use Only &nbsp;&middot;&nbsp; Not Financial Advice'
+    '</p>',
+    unsafe_allow_html=True,
+)
+st.markdown(
+    '<p style="text-align:center; color:#cbd5e1; font-size:0.65rem; max-width:600px; margin:0 auto;">'
+    'This platform is for private, personal family investment use only. '
+    'It is not a registered investment advisor, broker-dealer, or financial service. '
+    'No investment advice is being offered. All trading involves risk of loss. '
+    'Past performance does not guarantee future results.'
     '</p>',
     unsafe_allow_html=True,
 )

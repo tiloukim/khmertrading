@@ -36,7 +36,9 @@ def check_auth() -> bool:
 
     # Show login form
     st.markdown(
-        "<h2 style='text-align:center; margin-top:3rem;'>KhmerTrading Login</h2>",
+        "<h2 style='text-align:center; margin-top:3rem;'>KhmerTrading</h2>"
+        "<p style='text-align:center; color:#94a3b8; font-size:0.85rem; margin-bottom:2rem;'>"
+        "Private Family Investment Platform &mdash; Authorized Access Only</p>",
         unsafe_allow_html=True,
     )
 
