@@ -1092,7 +1092,7 @@ with main_tab4:
                 pos_data.append({
                     'Symbol': pos.symbol,
                     'Side': 'Long' if pos.side == 'long' else 'Short',
-                    'Qty': int(pos.qty),
+                    'Qty': float(pos.qty) if '.' in str(pos.qty) else int(pos.qty),
                     'Avg Cost': f"${float(pos.avg_entry_price):,.2f}",
                     'Current': f"${float(pos.current_price):,.2f}",
                     'Value': f"${mv:,.2f}",
