@@ -363,8 +363,11 @@ with st.sidebar:
 
     # ── Quick Trade
     with st.expander("Quick Trade", expanded=True):
-        st.caption("Enter a stock ticker (e.g. AAPL) or crypto pair (e.g. BTC/USD)")
-        trade_symbol = st.text_input("Symbol", value="NVDA", placeholder="AAPL, TSLA, BTC/USD").upper()
+        trade_symbols = ["NVDA", "TSLA", "AAPL", "MSFT", "AMZN", "GOOG", "META", "AMD", "NFLX", "SPY",
+                         "QQQ", "PLTR", "COIN", "SOFI", "UBER", "CRM", "INTC", "BA", "DIS", "PYPL",
+                         "BTC/USD", "ETH/USD", "SOL/USD", "DOGE/USD", "SHIB/USD", "PEPE/USD",
+                         "AVAX/USD", "LINK/USD", "LTC/USD", "UNI/USD"]
+        trade_symbol = st.selectbox("Symbol", trade_symbols, index=0)
         c1, c2 = st.columns(2)
         with c1:
             if '/' in trade_symbol:
