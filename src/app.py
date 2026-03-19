@@ -1646,7 +1646,8 @@ if is_admin and main_tab9 is not None:
             st.metric("Total Users", len(users))
             st.markdown("---")
             st.markdown("### Invite Code")
-            invite = os.getenv("INVITE_CODE", "family2024")
+            import os as _os
+            invite = _os.getenv("INVITE_CODE", "family2024")
             st.code(invite)
             st.caption("Share this code with family members so they can sign up.")
 
