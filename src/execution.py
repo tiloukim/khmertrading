@@ -35,7 +35,7 @@ def market_buy(symbol: str, qty, fractional: bool = False):
         return order
     except Exception as e:
         print(f"❌ BUY failed for {symbol}: {e}")
-        return None
+        raise  # Re-raise so the UI can show the actual error
 
 
 def market_sell(symbol: str, qty, fractional: bool = False):
@@ -64,7 +64,7 @@ def market_sell(symbol: str, qty, fractional: bool = False):
         return order
     except Exception as e:
         print(f"❌ SELL failed for {symbol}: {e}")
-        return None
+        raise
 
 
 def limit_buy(symbol, qty, limit_price):
