@@ -25,6 +25,7 @@ from alerts import add_alert, get_alerts, remove_alert, check_alerts, clear_trig
 from backtest import run_backtest
 from sentiment import get_sentiment
 from earnings import is_near_earnings
+from yahoo_data import get_live_price, fetch_yahoo_bars
 
 # ── Page Config ──────────────────────────────────────────────────────
 st.set_page_config(
@@ -605,21 +606,14 @@ with main_tab1:
             for j, symbol in enumerate(row):
                 with cols[j]:
                     try:
-                        is_crypto_sym = '/' in symbol
-                        if is_crypto_sym:
-                            snapshots = api.get_crypto_snapshot(symbol)
-                            snapshot = snapshots[symbol] if isinstance(snapshots, dict) else snapshots
-                            price = float(snapshot.latest_trade.p)
-                            prev_price = float(snapshot.prev_daily_bar.c) if snapshot.prev_daily_bar else price
+                        data = get_live_price(symbol)
+                        if data and data['price']:
+                            price = data['price']
+                            change_pct = data['change_pct']
+                            arrow = "+" if change_pct >= 0 else ""
+                            st.metric(symbol, f"${price:,.2f}", delta=f"{arrow}{change_pct:.2f}%")
                         else:
-                            snapshot = api.get_snapshot(symbol, feed='iex')
-                            price = float(snapshot.latest_trade.price) if snapshot.latest_trade else float(snapshot.daily_bar.close)
-                            prev_price = float(snapshot.prev_daily_bar.close) if snapshot.prev_daily_bar else price
-
-                        change = price - prev_price
-                        change_pct = (change / prev_price * 100) if prev_price != 0 else 0
-                        arrow = "+" if change >= 0 else ""
-                        st.metric(symbol, f"${price:,.2f}", delta=f"{arrow}{change_pct:.2f}%")
+                            st.metric(symbol, "---", delta="unavailable")
                     except Exception as e:
                         st.metric(symbol, "---", delta="unavailable")
     else:
@@ -654,7 +648,9 @@ with main_tab2:
         for i, symbol in enumerate(stock_watchlist):
             with tabs[i]:
                 try:
-                    bars = fetch_bars(symbol, timeframe=stock_timeframe)
+                    bars = fetch_yahoo_bars(symbol, timeframe=stock_timeframe)
+                    if bars is None:
+                        bars = fetch_bars(symbol, timeframe=stock_timeframe)
                     if bars is None or len(bars) < MA_PERIOD:
                         st.warning(f"Not enough data for {symbol}")
                         continue
@@ -904,26 +900,30 @@ with main_tab3:
     for i, symbol in enumerate(CRYPTO_SYMBOLS):
         with crypto_tabs[i]:
             try:
-                snapshots = api.get_crypto_snapshot(symbol)
-                snapshot = snapshots[symbol] if isinstance(snapshots, dict) else snapshots
-                price = float(snapshot.latest_trade.p)
-                prev_close = float(snapshot.prev_daily_bar.c) if snapshot.prev_daily_bar else price
-                change = price - prev_close
-                change_pct = (change / prev_close * 100) if prev_close != 0 else 0
+                data = get_live_price(symbol)
+                if data and data['price']:
+                    price = data['price']
+                    prev_close = data['prev_close'] or price
+                    change = data['change']
+                    change_pct = data['change_pct']
+                else:
+                    snapshots = api.get_crypto_snapshot(symbol)
+                    snapshot = snapshots[symbol] if isinstance(snapshots, dict) else snapshots
+                    price = float(snapshot.latest_trade.p)
+                    prev_close = float(snapshot.prev_daily_bar.c) if snapshot.prev_daily_bar else price
+                    change = price - prev_close
+                    change_pct = (change / prev_close * 100) if prev_close != 0 else 0
 
-                m1, m2, m3 = st.columns(3)
+                m1, m2 = st.columns(2)
                 with m1:
                     st.metric(f"{symbol}", f"${price:,.2f}",
                               delta=f"{'+' if change >= 0 else ''}{change_pct:.2f}%")
                 with m2:
-                    vol = float(snapshot.daily_bar.v) if snapshot.daily_bar else 0
-                    st.metric("24h Volume", f"{vol:,.4f}")
-                with m3:
-                    high = float(snapshot.daily_bar.h) if snapshot.daily_bar else price
-                    low = float(snapshot.daily_bar.l) if snapshot.daily_bar else price
-                    st.metric("24h Range", f"${low:,.0f} — ${high:,.0f}")
+                    st.metric("Prev Close", f"${prev_close:,.2f}")
 
-                bars = fetch_crypto_bars(symbol, hours=48, timeframe=crypto_tf)
+                bars = fetch_yahoo_bars(symbol, timeframe=crypto_tf)
+                if bars is None:
+                    bars = fetch_crypto_bars(symbol, hours=48, timeframe=crypto_tf)
                 if bars is not None and len(bars) >= MA_PERIOD:
                     bars['rsi'] = calculate_rsi(bars['close'])
                     bars['ma'] = calculate_ma(bars['close'])
