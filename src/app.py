@@ -448,9 +448,18 @@ with st.sidebar:
     with st.expander("Watchlist", expanded=True):
         watchlist = st.multiselect(
             "Symbols",
-            ["NVDA", "TSLA", "AAPL", "MSFT", "AMZN", "GOOG", "META", "AMD", "NFLX", "SPY",
-             "BTC/USD", "ETH/USD", "SOL/USD", "AVAX/USD", "LINK/USD", "DOGE/USD"],
-            default=["NVDA", "TSLA", "AAPL", "BTC/USD"],
+            [
+                # Top Stocks
+                "NVDA", "TSLA", "AAPL", "MSFT", "AMZN", "GOOG", "META", "AMD", "NFLX", "SPY",
+                "QQQ", "PLTR", "COIN", "SOFI", "UBER", "CRM", "INTC", "BA", "DIS", "PYPL",
+                "SQ", "SHOP", "ROKU", "SNAP", "MARA", "RIOT", "HOOD", "NIO", "RIVN", "LCID",
+                # Crypto (tradeable on Alpaca)
+                "BTC/USD", "ETH/USD", "SOL/USD", "DOGE/USD", "AVAX/USD", "LINK/USD",
+                "SHIB/USD", "UNI/USD", "AAVE/USD", "DOT/USD", "LTC/USD", "BCH/USD",
+                "XLM/USD", "ALGO/USD", "ATOM/USD", "NEAR/USD", "FIL/USD", "APE/USD",
+                "PEPE/USD", "MATIC/USD", "ARB/USD", "OP/USD", "MKR/USD", "GRT/USD",
+            ],
+            default=["NVDA", "TSLA", "AAPL", "BTC/USD", "ETH/USD", "DOGE/USD"],
             label_visibility="collapsed",
         )
 
@@ -870,7 +879,7 @@ with main_tab3:
     st.caption("Live cryptocurrency prices and analysis")
     crypto_tf = st.selectbox("Timeframe", list(TIMEFRAME_MAP.keys()), index=2, key="crypto_tf")
 
-    CRYPTO_SYMBOLS = ["BTC/USD", "ETH/USD", "SOL/USD", "AVAX/USD", "LINK/USD", "DOGE/USD"]
+    CRYPTO_SYMBOLS = ["BTC/USD", "ETH/USD", "SOL/USD", "DOGE/USD", "SHIB/USD", "PEPE/USD", "AVAX/USD", "LINK/USD", "LTC/USD", "UNI/USD"]
     crypto_tabs = st.tabs(CRYPTO_SYMBOLS)
 
     for i, symbol in enumerate(CRYPTO_SYMBOLS):
