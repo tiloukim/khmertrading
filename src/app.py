@@ -450,21 +450,38 @@ with st.sidebar:
     # ── Watchlist
     with st.expander("Watchlist", expanded=True):
         all_watchlist_symbols = [
-            "── Stocks ──",
             "NVDA", "TSLA", "AAPL", "MSFT", "AMZN", "GOOG", "META", "AMD", "NFLX", "SPY",
             "QQQ", "PLTR", "COIN", "SOFI", "UBER", "CRM", "INTC", "BA", "DIS", "PYPL",
             "SQ", "SHOP", "ROKU", "SNAP", "MARA", "RIOT", "HOOD", "NIO", "RIVN", "LCID",
-            "── Crypto ──",
             "BTC/USD", "ETH/USD", "SOL/USD", "DOGE/USD", "SHIB/USD", "PEPE/USD",
             "AVAX/USD", "LINK/USD", "UNI/USD", "AAVE/USD", "DOT/USD", "LTC/USD",
             "BCH/USD", "XLM/USD", "ALGO/USD", "ATOM/USD", "NEAR/USD", "FIL/USD",
             "APE/USD", "MATIC/USD", "ARB/USD", "OP/USD", "MKR/USD", "GRT/USD",
         ]
-        watchlist = st.multiselect(
-            "Add symbols",
-            [s for s in all_watchlist_symbols if not s.startswith("──")],
-            default=["NVDA", "TSLA", "AAPL", "BTC/USD", "ETH/USD", "DOGE/USD"],
-        )
+        # Initialize watchlist in session state
+        if 'watchlist_items' not in st.session_state:
+            st.session_state['watchlist_items'] = ["NVDA", "TSLA", "AAPL", "BTC/USD", "ETH/USD", "DOGE/USD"]
+
+        # Add symbol dropdown
+        available = [s for s in all_watchlist_symbols if s not in st.session_state['watchlist_items']]
+        if available:
+            add_sym = st.selectbox("Add symbol", [""] + available, index=0, key="wl_add")
+            if add_sym:
+                st.session_state['watchlist_items'].append(add_sym)
+                st.rerun()
+
+        # Show current watchlist with remove buttons
+        if st.session_state['watchlist_items']:
+            for sym in st.session_state['watchlist_items']:
+                c1, c2 = st.columns([3, 1])
+                with c1:
+                    st.caption(sym)
+                with c2:
+                    if st.button("x", key=f"rm_{sym}"):
+                        st.session_state['watchlist_items'].remove(sym)
+                        st.rerun()
+
+        watchlist = st.session_state['watchlist_items']
 
     # ── Price Alerts
     with st.expander("Price Alerts"):
