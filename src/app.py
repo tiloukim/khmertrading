@@ -540,6 +540,14 @@ with st.sidebar:
         st.rerun()
 
     st.markdown("---")
+    if st.button("Test Telegram", use_container_width=True):
+        from notifications import send_telegram
+        ok = send_telegram("Hello from KhmerTrading!")
+        if ok:
+            st.success("Telegram works!")
+        else:
+            import os
+            st.error(f"Telegram failed. Token set: {bool(os.getenv('TELEGRAM_BOT_TOKEN'))}, ChatID set: {bool(os.getenv('TELEGRAM_CHAT_ID'))}")
     if st.button("Send Report", use_container_width=True):
         import os
         has_tg = bool(os.getenv('TELEGRAM_BOT_TOKEN'))

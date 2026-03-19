@@ -12,11 +12,22 @@ def send_telegram(message):
         return False
     try:
         url = "https://api.telegram.org/bot{}/sendMessage".format(token)
+        # Telegram max message is 4096 chars, truncate if needed
+        if len(message) > 4000:
+            message = message[:4000] + "\n... (truncated)"
         resp = requests.post(url, json={
             'chat_id': chat_id,
             'text': message,
+            'parse_mode': 'HTML',
         }, timeout=10)
-        print(f"Telegram response: {resp.status_code} {resp.text[:200]}")
+        print(f"Telegram response: {resp.status_code} {resp.text[:300]}")
+        if resp.status_code != 200:
+            # Retry without parse_mode in case HTML causes issues
+            resp = requests.post(url, json={
+                'chat_id': chat_id,
+                'text': message,
+            }, timeout=10)
+            print(f"Telegram retry: {resp.status_code} {resp.text[:300]}")
         return resp.status_code == 200
     except Exception as e:
         print(f"Telegram error: {e}")

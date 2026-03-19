@@ -128,8 +128,10 @@ def send_daily_report():
     try:
         if send_telegram(report):
             success = True
-    except Exception:
-        pass
+        else:
+            print("Telegram send_telegram returned False")
+    except Exception as e:
+        print(f"Telegram exception: {e}")
 
     # Skip email for now — Railway SMTP is unreliable
     # Email can be re-enabled later if needed
