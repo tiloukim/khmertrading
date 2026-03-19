@@ -541,12 +541,15 @@ with st.sidebar:
 
     st.markdown("---")
     if st.button("Send Report", use_container_width=True):
+        import os
+        has_tg = bool(os.getenv('TELEGRAM_BOT_TOKEN'))
+        has_email = bool(os.getenv('SMTP_HOST'))
         try:
             ok = send_daily_report()
             if ok:
                 st.success("Report sent!")
             else:
-                st.error("SMTP not configured. Add SMTP_HOST, SMTP_USER, SMTP_PASS, REPORT_EMAIL in Railway variables.")
+                st.error(f"Report failed. Telegram: {'configured' if has_tg else 'NOT set'}, Email: {'configured' if has_email else 'NOT set'}")
         except Exception as e:
             st.error(f"Report failed: {e}")
 

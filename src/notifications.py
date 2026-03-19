@@ -2,24 +2,24 @@ import requests
 import os
 
 
-TELEGRAM_BOT_TOKEN = os.getenv('TELEGRAM_BOT_TOKEN', '')
-TELEGRAM_CHAT_ID = os.getenv('TELEGRAM_CHAT_ID', '')
-DISCORD_WEBHOOK_URL = os.getenv('DISCORD_WEBHOOK_URL', '')
-
-
 def send_telegram(message):
     # type: (str) -> bool
     """Send a message via Telegram bot. Returns True on success, False on failure."""
-    if not TELEGRAM_BOT_TOKEN or not TELEGRAM_CHAT_ID:
+    token = os.getenv('TELEGRAM_BOT_TOKEN', '')
+    chat_id = os.getenv('TELEGRAM_CHAT_ID', '')
+    if not token or not chat_id:
+        print(f"Telegram not configured: token={bool(token)}, chat_id={bool(chat_id)}")
         return False
     try:
-        url = "https://api.telegram.org/bot{}/sendMessage".format(TELEGRAM_BOT_TOKEN)
+        url = "https://api.telegram.org/bot{}/sendMessage".format(token)
         resp = requests.post(url, json={
-            'chat_id': TELEGRAM_CHAT_ID,
+            'chat_id': chat_id,
             'text': message,
         }, timeout=10)
+        print(f"Telegram response: {resp.status_code} {resp.text[:200]}")
         return resp.status_code == 200
-    except Exception:
+    except Exception as e:
+        print(f"Telegram error: {e}")
         return False
 
 
