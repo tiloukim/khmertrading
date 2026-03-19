@@ -449,26 +449,22 @@ with st.sidebar:
 
     # ── Watchlist
     with st.expander("Watchlist", expanded=True):
-        st.caption("Stocks")
-        stock_watch = st.multiselect(
-            "Stocks",
-            ["NVDA", "TSLA", "AAPL", "MSFT", "AMZN", "GOOG", "META", "AMD", "NFLX", "SPY",
-             "QQQ", "PLTR", "COIN", "SOFI", "UBER", "CRM", "INTC", "BA", "DIS", "PYPL",
-             "SQ", "SHOP", "ROKU", "SNAP", "MARA", "RIOT", "HOOD", "NIO", "RIVN", "LCID"],
-            default=["NVDA", "TSLA", "AAPL"],
-            label_visibility="collapsed",
+        all_watchlist_symbols = [
+            "── Stocks ──",
+            "NVDA", "TSLA", "AAPL", "MSFT", "AMZN", "GOOG", "META", "AMD", "NFLX", "SPY",
+            "QQQ", "PLTR", "COIN", "SOFI", "UBER", "CRM", "INTC", "BA", "DIS", "PYPL",
+            "SQ", "SHOP", "ROKU", "SNAP", "MARA", "RIOT", "HOOD", "NIO", "RIVN", "LCID",
+            "── Crypto ──",
+            "BTC/USD", "ETH/USD", "SOL/USD", "DOGE/USD", "SHIB/USD", "PEPE/USD",
+            "AVAX/USD", "LINK/USD", "UNI/USD", "AAVE/USD", "DOT/USD", "LTC/USD",
+            "BCH/USD", "XLM/USD", "ALGO/USD", "ATOM/USD", "NEAR/USD", "FIL/USD",
+            "APE/USD", "MATIC/USD", "ARB/USD", "OP/USD", "MKR/USD", "GRT/USD",
+        ]
+        watchlist = st.multiselect(
+            "Add symbols",
+            [s for s in all_watchlist_symbols if not s.startswith("──")],
+            default=["NVDA", "TSLA", "AAPL", "BTC/USD", "ETH/USD", "DOGE/USD"],
         )
-        st.caption("Crypto")
-        crypto_watch = st.multiselect(
-            "Crypto",
-            ["BTC/USD", "ETH/USD", "SOL/USD", "DOGE/USD", "SHIB/USD", "PEPE/USD",
-             "AVAX/USD", "LINK/USD", "UNI/USD", "AAVE/USD", "DOT/USD", "LTC/USD",
-             "BCH/USD", "XLM/USD", "ALGO/USD", "ATOM/USD", "NEAR/USD", "FIL/USD",
-             "APE/USD", "MATIC/USD", "ARB/USD", "OP/USD", "MKR/USD", "GRT/USD"],
-            default=["BTC/USD", "ETH/USD", "DOGE/USD"],
-            label_visibility="collapsed",
-        )
-        watchlist = stock_watch + crypto_watch
 
     # ── Price Alerts
     with st.expander("Price Alerts"):
