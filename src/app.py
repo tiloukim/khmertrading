@@ -115,20 +115,24 @@ st.markdown("""
         transition: all 0.15s ease;
         border: none;
     }
-    .stButton > button[kind="primary"] {
-        background: linear-gradient(135deg, #10b981 0%, #059669 100%);
-        color: white;
+    .stButton > button[kind="primary"],
+    .stButton > button[data-testid="stBaseButton-primary"] {
+        background: linear-gradient(135deg, #10b981 0%, #059669 100%) !important;
+        color: white !important;
     }
-    .stButton > button[kind="primary"]:hover {
-        background: linear-gradient(135deg, #059669 0%, #047857 100%);
+    .stButton > button[kind="primary"]:hover,
+    .stButton > button[data-testid="stBaseButton-primary"]:hover {
+        background: linear-gradient(135deg, #059669 0%, #047857 100%) !important;
         box-shadow: 0 4px 12px rgba(16,185,129,0.3);
     }
-    .stButton > button[kind="secondary"] {
-        background: #f1f5f9;
-        color: #475569;
+    .stButton > button[kind="secondary"],
+    .stButton > button[data-testid="stBaseButton-secondary"] {
+        background: #f1f5f9 !important;
+        color: #475569 !important;
     }
-    .stButton > button[kind="secondary"]:hover {
-        background: #e2e8f0;
+    .stButton > button[kind="secondary"]:hover,
+    .stButton > button[data-testid="stBaseButton-secondary"]:hover {
+        background: #e2e8f0 !important;
     }
 
     /* ── Tabs ──────────────────────────────────────── */
