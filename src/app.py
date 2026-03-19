@@ -468,7 +468,11 @@ with st.sidebar:
 
     # ── Price Alerts
     with st.expander("Price Alerts"):
-        alert_symbol = st.text_input("Symbol", value="BTC/USD", key="alert_sym").upper()
+        all_symbols = ["NVDA", "TSLA", "AAPL", "MSFT", "AMZN", "GOOG", "META", "AMD", "NFLX", "SPY",
+                       "QQQ", "PLTR", "COIN", "SOFI", "UBER", "CRM", "INTC", "BA", "DIS", "PYPL",
+                       "BTC/USD", "ETH/USD", "SOL/USD", "DOGE/USD", "SHIB/USD", "PEPE/USD",
+                       "AVAX/USD", "LINK/USD", "LTC/USD", "UNI/USD"]
+        alert_symbol = st.selectbox("Symbol", all_symbols, index=all_symbols.index("BTC/USD"), key="alert_sym")
         c1, c2 = st.columns(2)
         with c1:
             alert_price = st.number_input("Target ($)", min_value=0.01, value=100.00, key="alert_price")
