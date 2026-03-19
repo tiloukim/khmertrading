@@ -111,8 +111,9 @@ def send_email_report(to_email, subject, body):
         server.send_message(msg)
         server.quit()
         return True
-    except Exception:
-        return False
+    except Exception as e:
+        print(f"SMTP error: {e}")
+        raise
 
 
 def send_daily_report():

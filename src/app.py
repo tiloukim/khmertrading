@@ -541,11 +541,14 @@ with st.sidebar:
 
     st.markdown("---")
     if st.button("Send Report", use_container_width=True):
-        ok = send_daily_report()
-        if ok:
-            st.success("Report sent!")
-        else:
-            st.error("Report not sent. Check SMTP / REPORT_EMAIL config.")
+        try:
+            ok = send_daily_report()
+            if ok:
+                st.success("Report sent!")
+            else:
+                st.error("SMTP not configured. Add SMTP_HOST, SMTP_USER, SMTP_PASS, REPORT_EMAIL in Railway variables.")
+        except Exception as e:
+            st.error(f"Report failed: {e}")
 
     st.markdown("---")
     if st.button("Sign Out", use_container_width=True):
