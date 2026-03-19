@@ -540,20 +540,6 @@ with st.sidebar:
         st.rerun()
 
     st.markdown("---")
-    if st.button("Test Telegram", use_container_width=True):
-        import os
-        import requests as _req
-        _token = os.getenv('TELEGRAM_BOT_TOKEN', '')
-        _chat = os.getenv('TELEGRAM_CHAT_ID', '')
-        try:
-            _url = f"https://api.telegram.org/bot{_token}/sendMessage"
-            _resp = _req.post(_url, json={'chat_id': _chat, 'text': 'Hello from KhmerTrading!'}, timeout=10)
-            if _resp.status_code == 200:
-                st.success("Telegram works! Check your phone.")
-            else:
-                st.error(f"Telegram API error: {_resp.status_code} — {_resp.text[:200]}")
-        except Exception as e:
-            st.error(f"Telegram error: {e}")
     if st.button("Send Report", use_container_width=True):
         import os
         has_tg = bool(os.getenv('TELEGRAM_BOT_TOKEN'))
