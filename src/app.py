@@ -547,6 +547,12 @@ with st.sidebar:
         else:
             st.error("Report not sent. Check SMTP / REPORT_EMAIL config.")
 
+    st.markdown("---")
+    if st.button("Sign Out", use_container_width=True):
+        st.session_state["authenticated"] = False
+        st.query_params.clear()
+        st.rerun()
+
     st.caption(f"Updated {datetime.now().strftime('%I:%M:%S %p')}")
 
 # ── Auto-Refresh ────────────────────────────────────────────────────
