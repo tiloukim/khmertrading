@@ -368,6 +368,12 @@ with st.sidebar:
                          "BTC/USD", "ETH/USD", "SOL/USD", "DOGE/USD", "SHIB/USD", "PEPE/USD",
                          "AVAX/USD", "LINK/USD", "LTC/USD", "UNI/USD"]
         trade_symbol = st.selectbox("Symbol", trade_symbols, index=0)
+        # Show live price
+        _trade_price = get_live_price(trade_symbol)
+        if _trade_price and _trade_price['price']:
+            _arrow = "+" if _trade_price['change_pct'] >= 0 else ""
+            _color = "#10b981" if _trade_price['change_pct'] >= 0 else "#ef4444"
+            st.markdown(f'<span style="font-size:1.1rem; font-weight:700;">${_trade_price["price"]:,.2f}</span> <span style="color:{_color}; font-size:0.85rem;">{_arrow}{_trade_price["change_pct"]:.2f}%</span>', unsafe_allow_html=True)
         c1, c2 = st.columns(2)
         with c1:
             if '/' in trade_symbol:
@@ -470,13 +476,20 @@ with st.sidebar:
                 st.session_state['watchlist_items'].append(add_sym)
                 st.rerun()
 
-        # Show current watchlist with remove buttons
+        # Show current watchlist with price and remove buttons
         if st.session_state['watchlist_items']:
             for sym in st.session_state['watchlist_items']:
-                c1, c2 = st.columns([3, 1])
+                c1, c2, c3 = st.columns([2, 2, 1])
                 with c1:
                     st.caption(sym)
                 with c2:
+                    _wp = get_live_price(sym)
+                    if _wp and _wp['price']:
+                        _wcolor = "#10b981" if _wp['change_pct'] >= 0 else "#ef4444"
+                        st.markdown(f'<span style="font-size:0.8rem; font-weight:600;">${_wp["price"]:,.2f}</span> <span style="color:{_wcolor}; font-size:0.7rem;">{_wp["change_pct"]:+.1f}%</span>', unsafe_allow_html=True)
+                    else:
+                        st.caption("---")
+                with c3:
                     if st.button("x", key=f"rm_{sym}"):
                         st.session_state['watchlist_items'].remove(sym)
                         st.rerun()
@@ -490,6 +503,11 @@ with st.sidebar:
                        "BTC/USD", "ETH/USD", "SOL/USD", "DOGE/USD", "SHIB/USD", "PEPE/USD",
                        "AVAX/USD", "LINK/USD", "LTC/USD", "UNI/USD"]
         alert_symbol = st.selectbox("Symbol", all_symbols, index=all_symbols.index("BTC/USD"), key="alert_sym")
+        # Show live price
+        _ap = get_live_price(alert_symbol)
+        if _ap and _ap['price']:
+            _acolor = "#10b981" if _ap['change_pct'] >= 0 else "#ef4444"
+            st.markdown(f'<span style="font-size:1rem; font-weight:700;">${_ap["price"]:,.2f}</span> <span style="color:{_acolor}; font-size:0.8rem;">{_ap["change_pct"]:+.2f}%</span>', unsafe_allow_html=True)
         c1, c2 = st.columns(2)
         with c1:
             alert_price = st.number_input("Target ($)", min_value=0.01, value=100.00, key="alert_price")
