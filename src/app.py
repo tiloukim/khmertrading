@@ -625,9 +625,16 @@ if not snap_df.empty and len(snap_df) > 1:
 # ── Navigation tabs for main content ────────────────────────────────
 st.markdown("---")
 
-main_tab1, main_tab2, main_tab3, main_tab4, main_tab5, main_tab6, main_tab7, main_tab8 = st.tabs([
-    "Watchlist", "Strategy", "Crypto", "Positions", "Orders", "Alerts", "Backtest", "Options"
-])
+is_admin = st.session_state.get("user_role") == "admin"
+if is_admin:
+    main_tab1, main_tab2, main_tab3, main_tab4, main_tab5, main_tab6, main_tab7, main_tab8, main_tab9 = st.tabs([
+        "Watchlist", "Strategy", "Crypto", "Positions", "Orders", "Alerts", "Backtest", "Options", "Admin"
+    ])
+else:
+    main_tab1, main_tab2, main_tab3, main_tab4, main_tab5, main_tab6, main_tab7, main_tab8 = st.tabs([
+        "Watchlist", "Strategy", "Crypto", "Positions", "Orders", "Alerts", "Backtest", "Options"
+    ])
+    main_tab9 = None
 
 
 # ═══════════════════════════════════════════════════════════════════
@@ -1462,6 +1469,186 @@ leveraged speculation.
     opt_symbol = st.text_input("Check options availability", value="AAPL", key="_opt_symbol")
     if st.button("Check", key="_opt_check"):
         st.warning(get_options_chain(opt_symbol))
+
+
+# ═══════════════════════════════════════════════════════════════════
+#  TAB 9: ADMIN (admin only)
+# ═══════════════════════════════════════════════════════════════════
+if is_admin and main_tab9 is not None:
+    with main_tab9:
+        st.caption("Admin panel — manage users and view platform activity")
+        from auth import _load_users, USERS_FILE
+        import json
+
+        admin_tab1, admin_tab2, admin_tab3 = st.tabs(["Users", "All Positions", "Platform Stats"])
+
+        with admin_tab1:
+            st.markdown("### Registered Users")
+            users = _load_users()
+            if users:
+                user_list = []
+                for uname, udata in users.items():
+                    user_list.append({
+                        'Username': uname,
+                        'Name': udata.get('name', '—'),
+                        'Role': udata.get('role', 'family'),
+                    })
+                st.dataframe(pd.DataFrame(user_list), use_container_width=True, hide_index=True)
+            else:
+                st.info("No users registered.")
+
+            st.markdown("---")
+            st.markdown("### Add New User")
+            with st.form("admin_add_user"):
+                au_name = st.text_input("Name")
+                au_user = st.text_input("Username")
+                au_pass = st.text_input("Password", type="password")
+                au_role = st.selectbox("Role", ["family", "admin"])
+                au_submit = st.form_submit_button("Create User", type="primary")
+
+            if au_submit:
+                if au_user and au_pass:
+                    from auth import _save_user
+                    _save_user(au_user, au_pass, au_name)
+                    # Update role if admin
+                    if au_role == "admin" and USERS_FILE.exists():
+                        with open(USERS_FILE) as f:
+                            all_users = json.load(f)
+                        all_users[au_user]["role"] = "admin"
+                        with open(USERS_FILE, "w") as f:
+                            json.dump(all_users, f, indent=2)
+                    st.success(f"User '{au_user}' created!")
+                    st.rerun()
+                else:
+                    st.error("Username and password required.")
+
+            st.markdown("---")
+            st.markdown("### Remove User")
+            users = _load_users()
+            removable = [u for u in users if users[u].get("role") != "admin"]
+            if removable:
+                rm_user = st.selectbox("Select user to remove", removable, key="rm_user_select")
+                if st.button("Remove User", type="secondary"):
+                    if USERS_FILE.exists():
+                        with open(USERS_FILE) as f:
+                            all_users = json.load(f)
+                        if rm_user in all_users:
+                            del all_users[rm_user]
+                            with open(USERS_FILE, "w") as f:
+                                json.dump(all_users, f, indent=2)
+                            st.success(f"User '{rm_user}' removed.")
+                            st.rerun()
+            else:
+                st.info("No family users to remove.")
+
+        with admin_tab2:
+            st.markdown("### All Open Positions")
+            try:
+                all_positions = api.list_positions()
+                if all_positions:
+                    all_pos_data = []
+                    total_value = 0
+                    total_unrealized = 0
+                    for pos in all_positions:
+                        pl = float(pos.unrealized_pl)
+                        pl_pct = float(pos.unrealized_plpc) * 100
+                        mv = float(pos.market_value)
+                        total_value += mv
+                        total_unrealized += pl
+                        all_pos_data.append({
+                            'Symbol': pos.symbol,
+                            'Side': pos.side.upper(),
+                            'Qty': float(pos.qty) if '.' in str(pos.qty) else int(pos.qty),
+                            'Entry': f"${float(pos.avg_entry_price):,.2f}",
+                            'Current': f"${float(pos.current_price):,.2f}",
+                            'Value': f"${mv:,.2f}",
+                            'P/L': f"${pl:+,.2f}",
+                            'P/L %': f"{pl_pct:+.2f}%",
+                        })
+                    st.dataframe(pd.DataFrame(all_pos_data), use_container_width=True, hide_index=True)
+
+                    c1, c2, c3 = st.columns(3)
+                    with c1:
+                        st.metric("Total Positions", len(all_positions))
+                    with c2:
+                        st.metric("Total Value", f"${total_value:,.2f}")
+                    with c3:
+                        pl_emoji = "Profit" if total_unrealized >= 0 else "Loss"
+                        st.metric("Total P/L", f"${total_unrealized:+,.2f}", delta=pl_emoji)
+                else:
+                    st.info("No open positions.")
+            except Exception as e:
+                st.error(f"Error: {e}")
+
+            st.markdown("---")
+            st.markdown("### Recent Orders")
+            try:
+                recent_orders = api.list_orders(limit=25, status='all')
+                if recent_orders:
+                    order_data = []
+                    for o in recent_orders:
+                        filled = f"${float(o.filled_avg_price):,.2f}" if o.filled_avg_price else "---"
+                        submitted = str(o.submitted_at)[:19] if o.submitted_at else "---"
+                        order_data.append({
+                            'Time': submitted,
+                            'Side': o.side.upper(),
+                            'Symbol': o.symbol,
+                            'Qty': o.qty,
+                            'Type': o.type.upper(),
+                            'Fill Price': filled,
+                            'Status': o.status.capitalize(),
+                        })
+                    st.dataframe(pd.DataFrame(order_data), use_container_width=True, hide_index=True)
+                else:
+                    st.info("No recent orders.")
+            except Exception as e:
+                st.error(f"Error: {e}")
+
+        with admin_tab3:
+            st.markdown("### Platform Overview")
+            try:
+                acct = api.get_account()
+                eq = float(acct.equity)
+                cash_val = float(acct.cash)
+                pv = float(acct.portfolio_value)
+                bp = float(acct.buying_power)
+                initial_val = 100000.0
+                total_return = eq - initial_val
+                total_return_pct = (total_return / initial_val) * 100
+
+                c1, c2, c3, c4 = st.columns(4)
+                with c1:
+                    st.metric("Equity", f"${eq:,.2f}")
+                with c2:
+                    st.metric("Cash", f"${cash_val:,.2f}")
+                with c3:
+                    st.metric("Buying Power", f"${bp:,.2f}")
+                with c4:
+                    st.metric("Total Return", f"${total_return:+,.2f}", delta=f"{total_return_pct:+.2f}%")
+
+                st.markdown("---")
+                st.markdown("### Account Details")
+                st.json({
+                    'Account ID': acct.id,
+                    'Status': acct.status,
+                    'Currency': acct.currency,
+                    'Pattern Day Trader': str(acct.pattern_day_trader),
+                    'Trading Blocked': str(acct.trading_blocked),
+                    'Account Blocked': str(acct.account_blocked),
+                    'Created At': str(acct.created_at)[:19],
+                })
+            except Exception as e:
+                st.error(f"Error: {e}")
+
+            st.markdown("---")
+            st.markdown("### Registered Users")
+            users = _load_users()
+            st.metric("Total Users", len(users))
+            st.markdown("---")
+            st.markdown("### Invite Code")
+            invite = os.getenv("INVITE_CODE", "family2024")
+            st.code(invite)
+            st.caption("Share this code with family members so they can sign up.")
 
 
 # ── Footer ───────────────────────────────────────────────────────────
