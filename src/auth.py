@@ -74,7 +74,7 @@ def check_auth() -> bool:
     if not users:
         return True
 
-    # Check for auth token in query params (persistent login)
+    # Check for auth token in query params (persistent login), then clean URL
     params = st.query_params
     token = params.get("token", "")
     if token:
@@ -83,6 +83,10 @@ def check_auth() -> bool:
                 st.session_state["authenticated"] = True
                 st.session_state["current_user"] = uname
                 st.session_state["user_role"] = udata.get("role", "family")
+                st.session_state["auth_token"] = token
+                # Clear token from URL
+                st.query_params.clear()
+                st.rerun()
                 return True
 
     # Show logo
@@ -103,7 +107,6 @@ def check_auth() -> bool:
                 st.session_state["authenticated"] = True
                 st.session_state["current_user"] = username
                 st.session_state["user_role"] = users[username].get("role", "family")
-                st.query_params["token"] = _make_token(username, password)
                 st.rerun()
             else:
                 st.error("Invalid username or password.")
