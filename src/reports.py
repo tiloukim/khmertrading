@@ -131,13 +131,7 @@ def send_daily_report():
     except Exception:
         pass
 
-    # Try Email
-    if REPORT_EMAIL:
-        try:
-            subject = "KhmerTrading Report - {}".format(datetime.now().strftime('%Y-%m-%d'))
-            if send_email_report(REPORT_EMAIL, subject, report):
-                success = True
-        except Exception:
-            pass
+    # Skip email for now — Railway SMTP is unreliable
+    # Email can be re-enabled later if needed
 
     return success
