@@ -633,12 +633,12 @@ import os as _os2
 _admin_username = _os2.getenv("AUTH_USERNAME", "")
 is_admin = st.session_state.get("user_role") == "admin" or st.session_state.get("current_user") == _admin_username
 if is_admin:
-    main_tab1, main_tab2, main_tab3, main_tab4, main_tab5, main_tab6, main_tab7, main_tab8, main_tab9 = st.tabs([
-        "Watchlist", "Strategy", "Crypto", "Positions", "Orders", "Alerts", "Backtest", "Options", "Admin"
+    main_tab1, main_tab2, main_tab3, main_tab4, main_tab5, main_tab6, main_tab7, main_tab8, main_tab_scanner, main_tab9 = st.tabs([
+        "Watchlist", "Strategy", "Crypto", "Positions", "Orders", "Alerts", "Backtest", "Options", "Scanner", "Admin"
     ])
 else:
-    main_tab1, main_tab2, main_tab3, main_tab4, main_tab5, main_tab6, main_tab7, main_tab8 = st.tabs([
-        "Watchlist", "Strategy", "Crypto", "Positions", "Orders", "Alerts", "Backtest", "Options"
+    main_tab1, main_tab2, main_tab3, main_tab4, main_tab5, main_tab6, main_tab7, main_tab8, main_tab_scanner = st.tabs([
+        "Watchlist", "Strategy", "Crypto", "Positions", "Orders", "Alerts", "Backtest", "Options", "Scanner"
     ])
     main_tab9 = None
 
@@ -1475,6 +1475,14 @@ leveraged speculation.
     opt_symbol = st.text_input("Check options availability", value="AAPL", key="_opt_symbol")
     if st.button("Check", key="_opt_check"):
         st.warning(get_options_chain(opt_symbol))
+
+
+# ═══════════════════════════════════════════════════════════════════
+#  SCANNER TAB
+# ═══════════════════════════════════════════════════════════════════
+with main_tab_scanner:
+    from scanner import render_scanner
+    render_scanner()
 
 
 # ═══════════════════════════════════════════════════════════════════
