@@ -2,6 +2,7 @@
 
 import yfinance as yf
 import pandas as pd
+import streamlit as st
 from datetime import datetime, timedelta
 
 # Map our symbols to Yahoo Finance tickers
@@ -34,14 +35,19 @@ def _to_yf_symbol(symbol):
     return CRYPTO_MAP.get(symbol, symbol)
 
 
+@st.cache_data(ttl=60)
+def _fetch_price(yf_symbol):
+    """Cached price fetch — refreshes every 60 seconds."""
+    ticker = yf.Ticker(yf_symbol)
+    info = ticker.fast_info
+    return info.last_price, info.previous_close
+
+
 def get_live_price(symbol):
-    """Get real-time price for a symbol. Returns dict with price, change, change_pct, prev_close."""
+    """Get real-time price for a symbol. Cached for 60 seconds."""
     yf_symbol = _to_yf_symbol(symbol)
     try:
-        ticker = yf.Ticker(yf_symbol)
-        info = ticker.fast_info
-        price = info.last_price
-        prev_close = info.previous_close
+        price, prev_close = _fetch_price(yf_symbol)
         if price and prev_close:
             change = price - prev_close
             change_pct = (change / prev_close) * 100
@@ -69,6 +75,7 @@ def get_live_prices(symbols):
     return results
 
 
+@st.cache_data(ttl=120)
 def fetch_yahoo_bars(symbol, timeframe='1H', limit=100):
     """Fetch OHLCV bars from Yahoo Finance.
 
