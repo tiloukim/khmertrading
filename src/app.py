@@ -1135,18 +1135,57 @@ with main_tab4:
                 total_pl += pl
                 total_mv += mv
 
+                # Get AI signal for this position
+                sym = pos.symbol
+                # Convert BTCUSD to BTC/USD for our functions
+                display_sym = sym
+                if sym.endswith("USD") and not '/' in sym and len(sym) > 3:
+                    lookup_sym = sym[:-3] + "/USD"
+                else:
+                    lookup_sym = sym
+
+                signal_text = "HOLD"
+                signal_emoji = "🟡"
+                try:
+                    bars = fetch_yahoo_bars(lookup_sym, timeframe='1H')
+                    if bars is None:
+                        bars = fetch_bars(lookup_sym, timeframe='1H')
+                    if bars is not None and len(bars) >= MA_PERIOD:
+                        cs = combined_signal(bars)
+                        signal_text = cs['signal']
+                        if signal_text == 'BUY':
+                            signal_emoji = "🟢"
+                        elif signal_text == 'SELL':
+                            signal_emoji = "🔴"
+                        else:
+                            signal_emoji = "🟡"
+                except Exception:
+                    pass
+
                 pos_data.append({
-                    'Symbol': pos.symbol,
-                    'Side': 'Long' if pos.side == 'long' else 'Short',
+                    'Signal': f"{signal_emoji} {signal_text}",
+                    'Symbol': display_sym,
                     'Qty': float(pos.qty) if '.' in str(pos.qty) else int(pos.qty),
                     'Avg Cost': f"${float(pos.avg_entry_price):,.2f}",
                     'Current': f"${float(pos.current_price):,.2f}",
-                    'Value': f"${mv:,.2f}",
                     'P/L': f"${pl:+,.2f}",
                     'P/L %': f"{pl_pct:+.2f}%",
                 })
 
             st.dataframe(pd.DataFrame(pos_data), use_container_width=True, hide_index=True)
+
+            # Show detailed signal advice for each position
+            st.markdown("**AI Recommendations**")
+            for p in pos_data:
+                signal = p['Signal']
+                sym = p['Symbol']
+                pl_pct_str = p['P/L %']
+                if "BUY" in signal:
+                    st.success(f"🟢 **{sym}** — BUY signal. Consider adding to your position.")
+                elif "SELL" in signal:
+                    st.error(f"🔴 **{sym}** — SELL signal. Consider taking profits or reducing position.")
+                else:
+                    st.info(f"🟡 **{sym}** — HOLD. No strong signal right now. P/L: {pl_pct_str}")
 
             c1, c2, c3 = st.columns(3)
             with c1:
