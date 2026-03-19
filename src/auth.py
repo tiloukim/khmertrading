@@ -15,14 +15,14 @@ def check_auth() -> bool:
         return True
 
     import os
-    try:
-        expected_user = st.secrets["auth"]["username"]
-        expected_pass = st.secrets["auth"]["password"]
-    except (KeyError, FileNotFoundError):
-        # Fall back to environment variables
-        expected_user = os.getenv("AUTH_USERNAME", "")
-        expected_pass = os.getenv("AUTH_PASSWORD", "")
-        if not expected_user or not expected_pass:
+    # Check env vars first (Railway), then secrets.toml (local dev)
+    expected_user = os.getenv("AUTH_USERNAME", "")
+    expected_pass = os.getenv("AUTH_PASSWORD", "")
+    if not expected_user or not expected_pass:
+        try:
+            expected_user = st.secrets["auth"]["username"]
+            expected_pass = st.secrets["auth"]["password"]
+        except (KeyError, FileNotFoundError):
             # No auth configured – skip auth (dev mode only)
             return True
 
