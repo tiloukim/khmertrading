@@ -449,33 +449,47 @@ with st.sidebar:
                         st.error("Failed")
                     st.rerun()
         else:
+            # Show trade result from previous action
+            if 'trade_msg' in st.session_state:
+                msg = st.session_state.pop('trade_msg')
+                if msg.startswith('OK:'):
+                    st.success(msg[3:])
+                else:
+                    st.error(msg[4:])
+
             if st.button("BUY", use_container_width=True, type="primary"):
-                if order_type == "Market":
-                    result = market_buy(trade_symbol, trade_qty)
-                elif order_type == "Limit":
-                    result = limit_buy(trade_symbol, trade_qty, trade_limit_price)
-                elif order_type == "Stop":
-                    result = stop_order(trade_symbol, trade_qty, trade_stop_price, side='buy')
-                else:
-                    result = None
-                if result:
-                    st.success(f"Bought {trade_qty}x {trade_symbol}")
-                else:
-                    st.error("Buy failed")
+                try:
+                    if order_type == "Market":
+                        result = market_buy(trade_symbol, trade_qty)
+                    elif order_type == "Limit":
+                        result = limit_buy(trade_symbol, trade_qty, trade_limit_price)
+                    elif order_type == "Stop":
+                        result = stop_order(trade_symbol, trade_qty, trade_stop_price, side='buy')
+                    else:
+                        result = None
+                    if result:
+                        st.session_state['trade_msg'] = f"OK:Bought {trade_qty}x {trade_symbol} (Order: {result.status})"
+                    else:
+                        st.session_state['trade_msg'] = "ERR:Buy failed — check symbol and try again"
+                except Exception as e:
+                    st.session_state['trade_msg'] = f"ERR:Buy failed: {e}"
                 st.rerun()
             if st.button("SELL", use_container_width=True):
-                if order_type == "Market":
-                    result = market_sell(trade_symbol, trade_qty)
-                elif order_type == "Limit":
-                    result = limit_sell(trade_symbol, trade_qty, trade_limit_price)
-                elif order_type == "Stop":
-                    result = stop_order(trade_symbol, trade_qty, trade_stop_price, side='sell')
-                else:
-                    result = None
-                if result:
-                    st.success(f"Sold {trade_qty}x {trade_symbol}")
-                else:
-                    st.error("Sell failed")
+                try:
+                    if order_type == "Market":
+                        result = market_sell(trade_symbol, trade_qty)
+                    elif order_type == "Limit":
+                        result = limit_sell(trade_symbol, trade_qty, trade_limit_price)
+                    elif order_type == "Stop":
+                        result = stop_order(trade_symbol, trade_qty, trade_stop_price, side='sell')
+                    else:
+                        result = None
+                    if result:
+                        st.session_state['trade_msg'] = f"OK:Sold {trade_qty}x {trade_symbol} (Order: {result.status})"
+                    else:
+                        st.session_state['trade_msg'] = "ERR:Sell failed — check symbol and try again"
+                except Exception as e:
+                    st.session_state['trade_msg'] = f"ERR:Sell failed: {e}"
                 st.rerun()
 
     # ── Watchlist
