@@ -51,7 +51,7 @@ st.markdown("""
     }
 
     /* ── Hide Streamlit chrome ──────────────────────── */
-    #MainMenu, footer, header { visibility: hidden; }
+    #MainMenu, footer { visibility: hidden; }
 
     /* ── Section headers ───────────────────────────── */
     .section-header {
