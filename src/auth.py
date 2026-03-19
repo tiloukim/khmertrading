@@ -1,21 +1,23 @@
 import streamlit as st
+import hashlib
+import os
 import alpaca_trade_api as tradeapi
 from config import get_api, BASE_URL, LIVE_BASE_URL
 
 
+def _make_token(username, password):
+    """Create a simple auth token from credentials."""
+    return hashlib.sha256(f"{username}:{password}:khmertrading".encode()).hexdigest()[:32]
+
+
 def check_auth() -> bool:
-    """Simple password-based auth using st.secrets.
-    If secrets aren't configured, skip auth entirely (dev mode).
-    After login, optionally collect the user's own Alpaca API keys.
+    """Auth with cookie-based persistence via query params.
+    Press Enter to submit (uses st.form).
     """
     if st.session_state.get("authenticated"):
-        # ── Optional API-key form (shown after login) ────────────
-        if not st.session_state.get("api_keys_configured"):
-            _show_api_key_form()
         return True
 
-    import os
-    # Check env vars first (Railway), then secrets.toml (local dev)
+    # Get expected credentials
     expected_user = os.getenv("AUTH_USERNAME", "")
     expected_pass = os.getenv("AUTH_PASSWORD", "")
     if not expected_user or not expected_pass:
@@ -23,20 +25,31 @@ def check_auth() -> bool:
             expected_user = st.secrets["auth"]["username"]
             expected_pass = st.secrets["auth"]["password"]
         except (KeyError, FileNotFoundError):
-            # No auth configured – skip auth (dev mode only)
             return True
 
+    # Check for auth token in query params (persistent login)
+    expected_token = _make_token(expected_user, expected_pass)
+    params = st.query_params
+    if params.get("token") == expected_token:
+        st.session_state["authenticated"] = True
+        return True
+
+    # Show login form
     st.markdown(
-        "<h2 style='text-align:center; margin-top:3rem;'>🔒 KhmerTrading Login</h2>",
+        "<h2 style='text-align:center; margin-top:3rem;'>KhmerTrading Login</h2>",
         unsafe_allow_html=True,
     )
 
-    username = st.text_input("Username")
-    password = st.text_input("Password", type="password")
+    with st.form("login_form"):
+        username = st.text_input("Username")
+        password = st.text_input("Password", type="password")
+        submitted = st.form_submit_button("Login", type="primary", use_container_width=True)
 
-    if st.button("Login", type="primary"):
+    if submitted:
         if username == expected_user and password == expected_pass:
             st.session_state["authenticated"] = True
+            # Set token in URL for persistence across refreshes
+            st.query_params["token"] = _make_token(username, password)
             st.rerun()
         else:
             st.error("Invalid username or password.")
@@ -44,36 +57,7 @@ def check_auth() -> bool:
     return False
 
 
-def _show_api_key_form():
-    """Show a one-time form for users to enter their own Alpaca keys."""
-    with st.sidebar.expander("🔑 Your Alpaca API Keys", expanded=False):
-        st.caption("Leave blank to use the default (shared) keys.")
-        user_key = st.text_input(
-            "API Key",
-            value=st.session_state.get("user_api_key", ""),
-            key="_user_api_key_input",
-        )
-        user_secret = st.text_input(
-            "Secret Key",
-            value=st.session_state.get("user_secret_key", ""),
-            type="password",
-            key="_user_secret_key_input",
-        )
-        if st.button("Save Keys", key="_save_api_keys"):
-            st.session_state["user_api_key"] = user_key.strip()
-            st.session_state["user_secret_key"] = user_secret.strip()
-            st.session_state["api_keys_configured"] = True
-            st.success("API keys saved for this session.")
-            st.rerun()
-        if st.button("Use Default Keys", key="_use_default_keys"):
-            st.session_state["user_api_key"] = ""
-            st.session_state["user_secret_key"] = ""
-            st.session_state["api_keys_configured"] = True
-            st.rerun()
-
-
 def get_user_api(live=False):
-    # type: (bool) -> tradeapi.REST
     """Return an Alpaca REST client using the user's keys if provided,
     otherwise fall back to the default keys from config."""
     user_key = st.session_state.get("user_api_key", "")
