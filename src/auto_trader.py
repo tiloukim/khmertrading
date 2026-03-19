@@ -115,19 +115,49 @@ def render_auto_trade_controls():
             key="auto_trade_mode_select",
         )
 
-        stock_symbols = st.multiselect(
-            "Stock symbols",
-            ["NVDA", "TSLA", "AAPL", "MSFT", "AMZN", "GOOG", "META", "AMD"],
-            default=["NVDA", "TSLA", "AAPL"],
-            key="auto_stocks",
-        )
+        all_stocks = ["NVDA", "TSLA", "AAPL", "MSFT", "AMZN", "GOOG", "META", "AMD",
+                      "NFLX", "SPY", "QQQ", "PLTR", "COIN"]
+        all_crypto = ["BTC/USD", "ETH/USD", "SOL/USD", "DOGE/USD", "SHIB/USD", "PEPE/USD",
+                      "AVAX/USD", "LINK/USD", "LTC/USD"]
 
-        crypto_symbols = st.multiselect(
-            "Crypto symbols",
-            ["BTC/USD", "ETH/USD", "SOL/USD", "DOGE/USD"],
-            default=["BTC/USD", "ETH/USD"],
-            key="auto_crypto",
-        )
+        # Initialize auto trade symbols
+        if 'auto_stocks_list' not in st.session_state:
+            st.session_state['auto_stocks_list'] = ["NVDA", "TSLA", "AAPL"]
+        if 'auto_crypto_list' not in st.session_state:
+            st.session_state['auto_crypto_list'] = ["BTC/USD", "ETH/USD"]
+
+        st.caption("Stocks")
+        avail_stocks = [s for s in all_stocks if s not in st.session_state['auto_stocks_list']]
+        add_stock = st.selectbox("Add stock", [""] + avail_stocks, key="auto_add_stock")
+        if add_stock:
+            st.session_state['auto_stocks_list'].append(add_stock)
+            st.rerun()
+        for s in st.session_state['auto_stocks_list']:
+            c1, c2 = st.columns([3, 1])
+            with c1:
+                st.caption(s)
+            with c2:
+                if st.button("x", key=f"auto_rm_s_{s}"):
+                    st.session_state['auto_stocks_list'].remove(s)
+                    st.rerun()
+
+        st.caption("Crypto")
+        avail_crypto = [s for s in all_crypto if s not in st.session_state['auto_crypto_list']]
+        add_crypto = st.selectbox("Add crypto", [""] + avail_crypto, key="auto_add_crypto")
+        if add_crypto:
+            st.session_state['auto_crypto_list'].append(add_crypto)
+            st.rerun()
+        for s in st.session_state['auto_crypto_list']:
+            c1, c2 = st.columns([3, 1])
+            with c1:
+                st.caption(s)
+            with c2:
+                if st.button("x", key=f"auto_rm_c_{s}"):
+                    st.session_state['auto_crypto_list'].remove(s)
+                    st.rerun()
+
+        stock_symbols = st.session_state['auto_stocks_list']
+        crypto_symbols = st.session_state['auto_crypto_list']
 
         c1, c2 = st.columns(2)
         with c1:

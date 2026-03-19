@@ -629,7 +629,9 @@ if not snap_df.empty and len(snap_df) > 1:
 # ── Navigation tabs for main content ────────────────────────────────
 st.markdown("---")
 
-is_admin = st.session_state.get("user_role") == "admin"
+import os as _os2
+_admin_username = _os2.getenv("AUTH_USERNAME", "")
+is_admin = st.session_state.get("user_role") == "admin" or st.session_state.get("current_user") == _admin_username
 if is_admin:
     main_tab1, main_tab2, main_tab3, main_tab4, main_tab5, main_tab6, main_tab7, main_tab8, main_tab9 = st.tabs([
         "Watchlist", "Strategy", "Crypto", "Positions", "Orders", "Alerts", "Backtest", "Options", "Admin"
