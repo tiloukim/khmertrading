@@ -540,6 +540,10 @@ with st.sidebar:
     )
     st.markdown("")
 
+    # ── Stop-Loss Protection
+    from stop_loss import render_stop_loss_controls
+    render_stop_loss_controls()
+
     # ── Auto Trading
     from auto_trader import render_auto_trade_controls
     render_auto_trade_controls()
