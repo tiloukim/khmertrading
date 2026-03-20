@@ -145,11 +145,16 @@ def render_auto_trade_controls():
 
         st.caption("Stocks")
         avail_stocks = [s for s in all_stocks if s not in st.session_state['auto_stocks_list']]
-        add_stock = st.selectbox("Add stock", [""] + avail_stocks, key="auto_add_stock")
-        if add_stock:
-            st.session_state['auto_stocks_list'].append(add_stock)
-            st.rerun()
-        for s in st.session_state['auto_stocks_list']:
+        if avail_stocks:
+            ac1, ac2 = st.columns([3, 1])
+            with ac1:
+                add_stock = st.selectbox("Add stock", ["— select —"] + avail_stocks, key="auto_add_stock")
+            with ac2:
+                st.markdown("<br>", unsafe_allow_html=True)
+                if st.button("+", key="auto_add_stock_btn") and add_stock != "— select —":
+                    st.session_state['auto_stocks_list'].append(add_stock)
+                    st.rerun()
+        for s in list(st.session_state['auto_stocks_list']):
             c1, c2 = st.columns([3, 1])
             with c1:
                 st.caption(s)
@@ -160,11 +165,16 @@ def render_auto_trade_controls():
 
         st.caption("Crypto")
         avail_crypto = [s for s in all_crypto if s not in st.session_state['auto_crypto_list']]
-        add_crypto = st.selectbox("Add crypto", [""] + avail_crypto, key="auto_add_crypto")
-        if add_crypto:
-            st.session_state['auto_crypto_list'].append(add_crypto)
-            st.rerun()
-        for s in st.session_state['auto_crypto_list']:
+        if avail_crypto:
+            cc1, cc2 = st.columns([3, 1])
+            with cc1:
+                add_crypto = st.selectbox("Add crypto", ["— select —"] + avail_crypto, key="auto_add_crypto")
+            with cc2:
+                st.markdown("<br>", unsafe_allow_html=True)
+                if st.button("+", key="auto_add_crypto_btn") and add_crypto != "— select —":
+                    st.session_state['auto_crypto_list'].append(add_crypto)
+                    st.rerun()
+        for s in list(st.session_state['auto_crypto_list']):
             c1, c2 = st.columns([3, 1])
             with c1:
                 st.caption(s)
