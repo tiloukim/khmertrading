@@ -833,6 +833,9 @@ except Exception:
 #  MAIN CONTENT
 # ════════════════════════════════════════════════════════════════════
 
+from market_status import render_market_status
+render_market_status()
+
 st.markdown('<p class="page-title">Dashboard</p>', unsafe_allow_html=True)
 st.markdown('<p class="page-subtitle">Account overview and market analysis</p>', unsafe_allow_html=True)
 
@@ -925,6 +928,11 @@ with main_tab1:
                     except Exception as e:
                         st.metric(symbol, "---", delta="unavailable")
         st.caption("Click on the Strategy tab for detailed analysis of each stock.")
+
+        # Market News
+        st.markdown("---")
+        from news import render_news_section
+        render_news_section()
     else:
         st.info("Add symbols to your watchlist in the sidebar.")
 
