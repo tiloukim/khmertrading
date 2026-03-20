@@ -556,7 +556,21 @@ with st.sidebar:
         if _trade_price and _trade_price['price']:
             _arrow = "+" if _trade_price['change_pct'] >= 0 else ""
             _color = "#10b981" if _trade_price['change_pct'] >= 0 else "#ef4444"
-            st.markdown(f'<span style="font-size:1.1rem; font-weight:700;">${_trade_price["price"]:,.2f}</span> <span style="color:{_color}; font-size:0.85rem;">{_arrow}{_trade_price["change_pct"]:.2f}%</span>', unsafe_allow_html=True)
+            # Get signal for this symbol
+            _sig_text = ""
+            try:
+                _sig_bars = fetch_yahoo_bars(trade_symbol, timeframe='1H')
+                if _sig_bars is not None and len(_sig_bars) >= MA_PERIOD:
+                    _sig = combined_signal(_sig_bars)
+                    if _sig['signal'] == 'BUY':
+                        _sig_text = ' <span style="background:#d1fae5; color:#065f46; padding:2px 8px; border-radius:10px; font-size:0.7rem; font-weight:700;">BUY</span>'
+                    elif _sig['signal'] == 'SELL':
+                        _sig_text = ' <span style="background:#fee2e2; color:#991b1b; padding:2px 8px; border-radius:10px; font-size:0.7rem; font-weight:700;">SELL</span>'
+                    else:
+                        _sig_text = ' <span style="background:#fef3c7; color:#92400e; padding:2px 8px; border-radius:10px; font-size:0.7rem; font-weight:700;">HOLD</span>'
+            except Exception:
+                pass
+            st.markdown(f'<span style="font-size:1.1rem; font-weight:700;">${_trade_price["price"]:,.2f}</span> <span style="color:{_color}; font-size:0.85rem;">{_arrow}{_trade_price["change_pct"]:.2f}%</span>{_sig_text}', unsafe_allow_html=True)
         c1, c2 = st.columns(2)
         with c1:
             if '/' in trade_symbol:
@@ -669,7 +683,20 @@ with st.sidebar:
                     _wp = get_live_price(sym)
                     if _wp and _wp['price']:
                         _wcolor = "#10b981" if _wp['change_pct'] >= 0 else "#ef4444"
-                        st.markdown(f'<span style="font-size:0.8rem; font-weight:600;">${_wp["price"]:,.2f}</span> <span style="color:{_wcolor}; font-size:0.7rem;">{_wp["change_pct"]:+.1f}%</span>', unsafe_allow_html=True)
+                        _wsig = ""
+                        try:
+                            _wb = fetch_yahoo_bars(sym, timeframe='1H')
+                            if _wb is not None and len(_wb) >= MA_PERIOD:
+                                _ws = combined_signal(_wb)
+                                if _ws['signal'] == 'BUY':
+                                    _wsig = ' <span style="background:#d1fae5; color:#065f46; padding:1px 5px; border-radius:8px; font-size:0.55rem; font-weight:700;">BUY</span>'
+                                elif _ws['signal'] == 'SELL':
+                                    _wsig = ' <span style="background:#fee2e2; color:#991b1b; padding:1px 5px; border-radius:8px; font-size:0.55rem; font-weight:700;">SELL</span>'
+                                else:
+                                    _wsig = ' <span style="background:#fef3c7; color:#92400e; padding:1px 5px; border-radius:8px; font-size:0.55rem; font-weight:700;">HOLD</span>'
+                        except Exception:
+                            pass
+                        st.markdown(f'<span style="font-size:0.8rem; font-weight:600;">${_wp["price"]:,.2f}</span> <span style="color:{_wcolor}; font-size:0.7rem;">{_wp["change_pct"]:+.1f}%</span>{_wsig}', unsafe_allow_html=True)
                     else:
                         st.caption("---")
                 with c3:
@@ -690,7 +717,20 @@ with st.sidebar:
         _ap = get_live_price(alert_symbol)
         if _ap and _ap['price']:
             _acolor = "#10b981" if _ap['change_pct'] >= 0 else "#ef4444"
-            st.markdown(f'<span style="font-size:1rem; font-weight:700;">${_ap["price"]:,.2f}</span> <span style="color:{_acolor}; font-size:0.8rem;">{_ap["change_pct"]:+.2f}%</span>', unsafe_allow_html=True)
+            _asig = ""
+            try:
+                _ab = fetch_yahoo_bars(alert_symbol, timeframe='1H')
+                if _ab is not None and len(_ab) >= MA_PERIOD:
+                    _as = combined_signal(_ab)
+                    if _as['signal'] == 'BUY':
+                        _asig = ' <span style="background:#d1fae5; color:#065f46; padding:2px 8px; border-radius:10px; font-size:0.7rem; font-weight:700;">BUY</span>'
+                    elif _as['signal'] == 'SELL':
+                        _asig = ' <span style="background:#fee2e2; color:#991b1b; padding:2px 8px; border-radius:10px; font-size:0.7rem; font-weight:700;">SELL</span>'
+                    else:
+                        _asig = ' <span style="background:#fef3c7; color:#92400e; padding:2px 8px; border-radius:10px; font-size:0.7rem; font-weight:700;">HOLD</span>'
+            except Exception:
+                pass
+            st.markdown(f'<span style="font-size:1rem; font-weight:700;">${_ap["price"]:,.2f}</span> <span style="color:{_acolor}; font-size:0.8rem;">{_ap["change_pct"]:+.2f}%</span>{_asig}', unsafe_allow_html=True)
         c1, c2 = st.columns(2)
         with c1:
             alert_price = st.number_input("Target ($)", min_value=0.01, value=100.00, key="alert_price")
