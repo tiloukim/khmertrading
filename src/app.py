@@ -286,34 +286,209 @@ st.markdown("""
 
     /* ── Mobile responsive ─────────────────────────── */
     @media (max-width: 768px) {
+        /* ── Layout & spacing ── */
         .main .block-container {
-            padding-left: 1rem;
-            padding-right: 1rem;
-            padding-top: 1rem;
+            padding-left: 0.75rem !important;
+            padding-right: 0.75rem !important;
+            padding-top: 0.75rem !important;
+            padding-bottom: 1rem !important;
+            max-width: 100% !important;
         }
+
+        /* ── Sidebar: collapsed by default, no overlap ── */
+        section[data-testid="stSidebar"] {
+            width: 280px !important;
+            min-width: 280px !important;
+            z-index: 999;
+        }
+        section[data-testid="stSidebar"][aria-expanded="false"] {
+            margin-left: -280px !important;
+        }
+        section[data-testid="stSidebar"] .block-container {
+            padding: 0.75rem !important;
+        }
+
+        /* ── Typography: smaller fonts ── */
         .page-title {
-            font-size: 1.3rem;
+            font-size: 1.2rem !important;
         }
         .page-subtitle {
-            font-size: 0.75rem;
+            font-size: 0.7rem !important;
+            margin-bottom: 0.75rem !important;
+        }
+        .section-header {
+            font-size: 0.85rem !important;
+            margin-bottom: 0.5rem !important;
+            padding-bottom: 0.35rem !important;
+        }
+        h1, .stMarkdown h1 { font-size: 1.3rem !important; }
+        h2, .stMarkdown h2 { font-size: 1.1rem !important; }
+        h3, .stMarkdown h3 { font-size: 0.95rem !important; }
+        p, .stMarkdown p, .stMarkdown span {
+            font-size: 0.85rem !important;
+        }
+        .stCaption, .stMarkdown .stCaption {
+            font-size: 0.7rem !important;
+        }
+
+        /* ── Metric cards: stack vertically, 1 per row ── */
+        div[data-testid="stHorizontalBlock"] {
+            flex-wrap: wrap !important;
+            gap: 0.5rem !important;
+        }
+        div[data-testid="stHorizontalBlock"] > div[data-testid="stColumn"] {
+            min-width: 100% !important;
+            flex: 1 1 100% !important;
         }
         div[data-testid="stMetric"] {
-            padding: 12px 10px;
-            border-radius: 10px;
+            padding: 10px 12px !important;
+            border-radius: 10px !important;
         }
         div[data-testid="stMetric"] [data-testid="stMetricValue"] {
-            font-size: 1.1rem !important;
+            font-size: 1.05rem !important;
         }
         div[data-testid="stMetric"] label {
-            font-size: 0.65rem !important;
+            font-size: 0.6rem !important;
+        }
+
+        /* ── Tabs: smaller labels, scrollable ── */
+        .stTabs [data-baseweb="tab-list"] {
+            overflow-x: auto !important;
+            -webkit-overflow-scrolling: touch;
+            scrollbar-width: none;
+            padding: 3px !important;
+            gap: 0 !important;
+        }
+        .stTabs [data-baseweb="tab-list"]::-webkit-scrollbar {
+            display: none;
         }
         .stTabs [data-baseweb="tab"] {
-            padding: 6px 12px;
-            font-size: 0.75rem;
+            padding: 5px 8px !important;
+            font-size: 0.65rem !important;
+            white-space: nowrap !important;
+            flex-shrink: 0 !important;
         }
+
+        /* ── Buttons: full width ── */
+        .stButton > button {
+            width: 100% !important;
+            font-size: 0.8rem !important;
+            padding: 0.45rem 0.75rem !important;
+        }
+        .stDownloadButton > button {
+            width: 100% !important;
+            font-size: 0.8rem !important;
+        }
+
+        /* ── Signal badges ── */
         .signal-buy, .signal-sell, .signal-hold {
-            font-size: 0.75rem;
-            padding: 4px 10px;
+            font-size: 0.7rem !important;
+            padding: 3px 8px !important;
+        }
+
+        /* ── Charts / Plotly: responsive height ── */
+        .stPlotlyChart, .js-plotly-plot {
+            width: 100% !important;
+            min-width: 0 !important;
+        }
+        /* Reduce default plotly chart heights on mobile */
+        .stPlotlyChart > div {
+            max-height: 280px !important;
+        }
+
+        /* ── Dataframes: horizontal scroll ── */
+        .stDataFrame {
+            overflow-x: auto !important;
+            -webkit-overflow-scrolling: touch;
+            font-size: 0.75rem !important;
+        }
+
+        /* ── Expander ── */
+        .streamlit-expanderHeader {
+            font-size: 0.8rem !important;
+            padding: 0.5rem !important;
+        }
+
+        /* ── Form inputs ── */
+        .stTextInput input,
+        .stNumberInput input,
+        .stSelectbox [data-baseweb="select"],
+        .stMultiSelect [data-baseweb="select"] {
+            font-size: 0.8rem !important;
+        }
+        .stTextInput label,
+        .stNumberInput label,
+        .stSelectbox label,
+        .stMultiSelect label {
+            font-size: 0.7rem !important;
+        }
+
+        /* ── Dividers ── */
+        hr {
+            margin: 0.75rem 0 !important;
+        }
+
+        /* ── Status pill ── */
+        .status-pill {
+            font-size: 0.6rem !important;
+            padding: 3px 8px !important;
+        }
+
+        /* ── Nav container ── */
+        .nav-container {
+            gap: 4px !important;
+        }
+
+        /* ── Alerts ── */
+        .stAlert {
+            font-size: 0.8rem !important;
+            padding: 0.5rem !important;
+            border-radius: 8px !important;
+        }
+
+        /* ── Footer ── */
+        footer { display: none !important; }
+    }
+
+    /* ── Small phones (< 480px) ── */
+    @media (max-width: 480px) {
+        .main .block-container {
+            padding-left: 0.5rem !important;
+            padding-right: 0.5rem !important;
+        }
+        .page-title {
+            font-size: 1rem !important;
+        }
+        .stTabs [data-baseweb="tab"] {
+            padding: 4px 6px !important;
+            font-size: 0.6rem !important;
+        }
+        div[data-testid="stMetric"] [data-testid="stMetricValue"] {
+            font-size: 0.95rem !important;
+        }
+    }
+
+    /* ── Watchlist cards: 2 columns max on mobile ── */
+    @media (max-width: 768px) {
+        /* Override Streamlit's column layout for watchlist-style grids */
+        div[data-testid="stHorizontalBlock"]:has(> div[data-testid="stColumn"] div[data-testid="stMetric"]) {
+            display: grid !important;
+            grid-template-columns: 1fr 1fr !important;
+            gap: 0.5rem !important;
+        }
+        div[data-testid="stHorizontalBlock"]:has(> div[data-testid="stColumn"] div[data-testid="stMetric"]) > div[data-testid="stColumn"] {
+            min-width: 0 !important;
+            flex: unset !important;
+            width: 100% !important;
+        }
+    }
+
+    /* ── Equity chart height reduction on mobile ── */
+    @media (max-width: 768px) {
+        /* Target the equity curve chart specifically (first plotly chart) */
+        .stPlotlyChart iframe,
+        .stPlotlyChart > div > div {
+            max-height: 200px !important;
         }
     }
 </style>
