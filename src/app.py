@@ -788,6 +788,13 @@ with st.sidebar:
 if auto_refresh_on:
     st_autorefresh(interval=60000, key="auto_refresh")
 
+# ── Scheduled Reports ──────────────────────────────────────────────
+try:
+    from scheduled_reports import check_and_send_scheduled_reports
+    check_and_send_scheduled_reports()
+except Exception:
+    pass
+
 
 # ════════════════════════════════════════════════════════════════════
 #  MAIN CONTENT
