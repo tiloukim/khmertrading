@@ -599,6 +599,31 @@ with st.sidebar:
             if is_crypto(trade_symbol):
                 st.warning("Bracket orders not supported for crypto.")
 
+        # ── Risk Calculator ──
+        if _trade_price and _trade_price['price'] and order_type == "Market":
+            _entry = _trade_price['price']
+            _sl_pct = st.session_state.get('stop_loss_pct', 5.0)
+            _tp_pct = _sl_pct * 2  # 2:1 reward/risk ratio
+            _sl_price = _entry * (1 - _sl_pct / 100)
+            _tp_price = _entry * (1 + _tp_pct / 100)
+            _position_size = _entry * float(trade_qty)
+            _max_loss = _position_size * (_sl_pct / 100)
+            _max_gain = _position_size * (_tp_pct / 100)
+            _rr_ratio = _tp_pct / _sl_pct if _sl_pct > 0 else 0
+
+            st.markdown(
+                '<div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:10px; padding:8px 10px; margin:6px 0; font-size:0.75rem;">'
+                '<div style="font-weight:700; font-size:0.8rem; margin-bottom:4px;">Risk Calculator</div>'
+                f'<div style="display:flex; justify-content:space-between;"><span>Stop-loss ({_sl_pct}%)</span><span style="color:#ef4444; font-weight:600;">${_sl_price:,.2f}</span></div>'
+                f'<div style="display:flex; justify-content:space-between;"><span>Take-profit ({_tp_pct:.0f}%)</span><span style="color:#10b981; font-weight:600;">${_tp_price:,.2f}</span></div>'
+                f'<div style="display:flex; justify-content:space-between;"><span>Position size</span><span>${_position_size:,.2f}</span></div>'
+                f'<div style="display:flex; justify-content:space-between;"><span>Max loss</span><span style="color:#ef4444;">-${_max_loss:,.2f}</span></div>'
+                f'<div style="display:flex; justify-content:space-between;"><span>Max gain</span><span style="color:#10b981;">+${_max_gain:,.2f}</span></div>'
+                f'<div style="display:flex; justify-content:space-between; margin-top:4px; border-top:1px solid #e2e8f0; padding-top:4px;"><span style="font-weight:700;">Risk/Reward</span><span style="color:#10b981; font-weight:700;">{_rr_ratio:.1f}:1</span></div>'
+                '</div>',
+                unsafe_allow_html=True,
+            )
+
         if order_type == "Bracket":
             if st.button("BUY Bracket", use_container_width=True, type="primary"):
                 if is_crypto(trade_symbol):
