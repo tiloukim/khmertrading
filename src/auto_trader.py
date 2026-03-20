@@ -94,17 +94,22 @@ def check_and_trade(symbols, trade_qty_stocks=5, trade_qty_crypto=0.01, dry_run=
         except Exception as e:
             continue
 
-    # Send Telegram notification if any trades were made
+    # Send Telegram notification only if actions changed from last time
     if actions:
-        msg = "🤖 KhmerTrading AI Bot\n"
-        msg += f"📅 {datetime.now().strftime('%b %d, %I:%M %p')}\n\n"
-        for a in actions:
-            msg += f"{a}\n"
-        msg += "\n— Auto Trading"
-        try:
-            send_telegram(msg)
-        except Exception:
-            pass
+        actions_key = str(sorted([a.split('x ')[1].split(' ')[0] if 'x ' in a else a for a in actions]))
+        last_actions = st.session_state.get('last_auto_actions', '')
+
+        if actions_key != last_actions:
+            st.session_state['last_auto_actions'] = actions_key
+            msg = "🤖 KhmerTrading AI Bot\n"
+            msg += f"📅 {datetime.now().strftime('%b %d, %I:%M %p')}\n\n"
+            for a in actions:
+                msg += f"{a}\n"
+            msg += "\n— Auto Trading"
+            try:
+                send_telegram(msg)
+            except Exception:
+                pass
 
     return actions
 
