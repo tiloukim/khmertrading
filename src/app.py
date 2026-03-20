@@ -548,6 +548,10 @@ with st.sidebar:
     from auto_trader import render_auto_trade_controls
     render_auto_trade_controls()
 
+    # ── PDT Day Trade Counter
+    from pdt_guard import render_pdt_warning
+    render_pdt_warning()
+
     # ── Quick Trade
     with st.expander("Quick Trade", expanded=True):
         trade_symbols = ["NVDA", "TSLA", "AAPL", "MSFT", "AMZN", "GOOG", "META", "AMD", "NFLX", "SPY",

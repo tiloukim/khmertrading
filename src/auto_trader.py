@@ -18,6 +18,14 @@ def check_and_trade(symbols, trade_qty_stocks=5, trade_qty_crypto=0.01, dry_run=
     actions = []
     api = get_api()
 
+    # Check PDT limit for stocks
+    try:
+        from pdt_guard import get_day_trade_count
+        pdt = get_day_trade_count()
+        stock_day_trades_left = pdt['remaining']
+    except Exception:
+        stock_day_trades_left = 3
+
     # Get current positions
     try:
         positions = {p.symbol: p for p in api.list_positions()}
@@ -50,6 +58,10 @@ def check_and_trade(symbols, trade_qty_stocks=5, trade_qty_crypto=0.01, dry_run=
             action = None
 
             if signal == 'BUY' and not has_position:
+                # PDT check: skip stock buys if no day trades left
+                if not crypto and stock_day_trades_left <= 0:
+                    actions.append(f"⚠️ SKIPPED BUY {symbol} — PDT limit reached (0 stock day trades left)")
+                    continue
                 # Buy if we don't already have a position
                 if not dry_run:
                     try:
