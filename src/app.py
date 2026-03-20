@@ -28,9 +28,11 @@ from earnings import is_near_earnings
 from yahoo_data import get_live_price, fetch_yahoo_bars
 
 # ── Page Config ──────────────────────────────────────────────────────
+from pathlib import Path as _Path
+_favicon = str(_Path(__file__).parent.parent / "favicon.ico")
 st.set_page_config(
     page_title="KhmerTrading AI Bot",
-    page_icon="📈",
+    page_icon=_favicon,
     layout="wide",
     initial_sidebar_state="expanded",
 )
